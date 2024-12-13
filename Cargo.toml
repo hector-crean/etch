@@ -1,0 +1,33 @@
+[workspace]
+members = [ "cli",
+    "crates/*"
+]
+resolver = "2"
+
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Hector Crean <hectorcrean@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+etch_core = { path = "crates/etch_core" }
+etch_html = { path = "crates/etch_html" }
+etch_md = { path = "crates/etch_md" }
+etch_tsx = { path = "crates/etch_tsx" }
+serde = { version = "1.0.199", features = ["derive"] }
+serde_json = "1.0"
+color-eyre = "0.6.3"
+thiserror = "1.0.59"
+env_logger = "0.11.5"
+log = "0.4.22"
+uuid = { version = "1.6.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.24", features = ["serde"] }
+dotenv = "0.15.0"
+walkdir = "2.3.3"
+strum = { version = "0.26.0", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = true
