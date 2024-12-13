@@ -1,0 +1,16 @@
+[package]
+name = "etch"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+color-eyre = { workspace = true }
+thiserror = { workspace = true }
+dotenv = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+
+syntect = "5.0.0"
+pulldown-cmark = "0.12.2"
