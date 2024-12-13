@@ -1,0 +1,19 @@
+[package]
+name = "etch_tsx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre =  { workspace =  true }
+thiserror = { workspace = true }
+dotenv =  { workspace = true }
+env_logger =  { workspace = true }
+log = { workspace = true }
+walkdir = { workspace = true }
+serde_json = { workspace = true }
+
+swc_common = "0.40.0"
+swc_ecma_ast = "0.121.0"
+swc_ecma_parser = "0.152.0"
+swc_ecma_visit = "0.107.0"
+
