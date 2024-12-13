@@ -1,0 +1,15 @@
+[package]
+name = "cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+etch_html = { workspace = true }
+thiserror = { workspace = true }
+color-eyre = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+clap = { version = "4.5.23", features = ["derive"] }
+dotenv = { workspace = true }
