@@ -2,6 +2,8 @@ pub mod document_id_visitor;
 pub mod text_collector_visitor;
 pub mod rich_text_transform_visitor;
 pub mod svg_extractor_visitor;
+pub mod link_visitor;
+pub mod asset_visitor;
 
 use crate::rc_dom::{Handle, NodeData};
 use html5ever::{Attribute, QualName};
@@ -12,6 +14,8 @@ pub use document_id_visitor::DocumentIdVisitor;
 pub use text_collector_visitor::TextCollectorVisitor;
 pub use rich_text_transform_visitor::RichTextTransformVisitor;
 pub use svg_extractor_visitor::SvgExtractVisitor;
+pub use link_visitor::LinkVisitor;
+pub use asset_visitor::AssetVisitor;
 
 pub type ReplaceNode = Option<Handle>;
 pub type ContinueToChildren = bool;

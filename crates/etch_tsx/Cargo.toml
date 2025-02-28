@@ -12,8 +12,10 @@ log = { workspace = true }
 walkdir = { workspace = true }
 serde_json = { workspace = true }
 
-swc_common = "0.40.0"
-swc_ecma_ast = "0.121.0"
-swc_ecma_parser = "0.152.0"
-swc_ecma_visit = "0.107.0"
 
+
+swc_common =  { workspace = true }
+swc_ecma_ast =  { workspace = true }
+swc_ecma_parser =  { workspace = true }
+swc_ecma_visit =  { workspace = true }
+regex = { workspace = true }

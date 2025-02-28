@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 serde = { workspace = true }
+walkdir = { workspace = true }
+thiserror = { workspace = true }
+etch_tsx = { workspace = true }

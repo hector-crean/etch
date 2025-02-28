@@ -189,3 +189,82 @@ fn sanitize_text(text: &str) -> String {
         .replace('\u{00A0}', " ") // Replace non-breaking spaces with regular spaces
         .replace("  ", " ") // Replace double spaces with single spaces
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rc_dom::RcDom;
+    use html5ever::parse_document;
+    use html5ever::tendril::TendrilSink;
+
+    fn format_html(html: &str, indent: usize) -> String {
+        let mut formatted = String::new();
+        let mut depth: usize = 0;
+        let mut chars = html.chars().peekable();
+        let indent_str = " ".repeat(indent);
+
+        while let Some(c) = chars.next() {
+            match c {
+                '<' => {
+                    if chars.peek() == Some(&'/') {
+                        depth = depth.saturating_sub(1);
+                        formatted.push('\n');
+                        formatted.push_str(&indent_str.repeat(depth));
+                    } else {
+                        formatted.push('\n');
+                        formatted.push_str(&indent_str.repeat(depth));
+                        depth += 1;
+                    }
+                    formatted.push('<');
+                }
+                '>' => {
+                    formatted.push('>');
+                    if chars.peek().map_or(false, |&next| next != '<') {
+                        formatted.push('\n');
+                        formatted.push_str(&indent_str.repeat(depth));
+                    }
+                }
+                _ => formatted.push(c),
+            }
+        }
+        formatted
+    }
+
+    #[test]
+    fn test_rich_text_transformation() -> Result<(), std::io::Error> {
+        // Create a sample HTML string with mixed content
+        let html = r#"
+            <div>
+                <p>Hello, world!</p>
+                <ul>
+                    <li>First item</li>
+                    <li>Second item</li>
+                </ul>
+                <p>Another paragraph with <strong>bold text</strong></p>
+            </div>
+        "#;
+
+ 
+        // Create and apply the visitor
+        let mut visitor = RichTextTransformVisitor::new();
+        let (updated_dom, visitor) = crate::file::process_html_str(html, visitor)?;
+
+
+
+        // Get the mappings
+        let mappings = visitor.rich_text_mappings();
+
+      
+
+        // Print the transformed HTML and mappings for inspection
+        println!("Transformed HTML:");
+        println!("{}", format_html(&updated_dom.to_string(), 2));
+
+        println!("\nRich Text Mappings:");
+        for (id, content) in mappings {
+            println!("ID: {}\nContent: {}\n", id, content);
+        }
+
+        Ok(())
+    }
+}

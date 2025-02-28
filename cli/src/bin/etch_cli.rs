@@ -3,7 +3,8 @@ use std::{fs::File, io::Write};
 use cli::{Cli, Commands, HtmlCommands};
 use clap::Parser;
 
-use etch_html::{file, visitor, walk};
+use etch_html::{file, visitor};
+use etch_core::walk::FileWalker;
 use log::info;
 use dotenv::dotenv;
 
@@ -14,6 +15,8 @@ fn main() {
     info!("Starting CLI");
 
     let cli = Cli::parse();
+
+    let walker = FileWalker::new(["html"]);
 
 
     if let Some(config_path) = cli.config.as_deref() {
@@ -28,7 +31,7 @@ fn main() {
         HtmlCommands::ExtractSvgs { root_dir, output_dir, svg_import_type, preserve_structure,  asset_dir} => {
             info!("Extracting SVGs from {}", root_dir.display());
 
-            let _ = walk::process_html_files(root_dir, |path, _| {
+            let _ = walker.visit(root_dir, |path, _| {
 
                 let visitor = visitor::SvgExtractVisitor::new(*svg_import_type, asset_dir.clone());
                 let (updated_dom, visitor) = file::process_html_file(path, visitor)?;

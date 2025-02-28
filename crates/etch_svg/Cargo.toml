@@ -1,0 +1,16 @@
+[package]
+name = "etch_svg"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+roxmltree = "0.20.0"
+serde = { workspace = true }
+swc_common = { workspace = true }
+swc_ecma_ast = { workspace = true }
+swc_ecma_parser = { workspace = true }
+swc_ecma_visit = { workspace = true }
+swc_ecma_codegen = { workspace = true }
+swc_atoms = { workspace = true }
