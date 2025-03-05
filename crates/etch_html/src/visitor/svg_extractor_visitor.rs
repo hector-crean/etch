@@ -1,10 +1,10 @@
 use super::NodeVisitor;
 use crate::rc_dom::{Handle, Node, NodeData};
 use html5ever::{Attribute, LocalName, QualName};
-use uuid::Uuid;
-use std::{cell::RefCell, collections::HashMap, path::PathBuf};
 use markup5ever::{namespace_url, ns};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf};
 use strum::{Display, EnumString};
+use uuid::Uuid;
 
 //Embedding the svg
 
@@ -22,15 +22,15 @@ pub enum SvgImportType {
 pub struct SvgExtractVisitor {
     svgs: HashMap<Uuid, String>,
     import_type: SvgImportType,
-    asset_dir: Option<PathBuf>
+    asset_dir: Option<PathBuf>,
 }
 
 impl SvgExtractVisitor {
-    pub fn new(import_type: SvgImportType, asset_dir: Option<PathBuf>,) -> Self {
+    pub fn new(import_type: SvgImportType, asset_dir: Option<PathBuf>) -> Self {
         SvgExtractVisitor {
             svgs: HashMap::new(),
             import_type,
-            asset_dir
+            asset_dir,
         }
     }
     pub fn svgs(&self) -> &HashMap<Uuid, String> {
@@ -39,7 +39,7 @@ impl SvgExtractVisitor {
 
     fn create_replacement_element(&self, uuid: Uuid, asset_dir: Option<PathBuf>) -> Handle {
         let path = asset_dir
-            .unwrap_or_else(|| PathBuf::new())
+            .unwrap_or_default()
             .join(format!("{}.svg", uuid))
             .to_string_lossy()
             .into_owned();
@@ -49,7 +49,7 @@ impl SvgExtractVisitor {
                 let attrs = vec![
                     Attribute {
                         name: QualName::new(None, ns!(), LocalName::from("data")),
-                        value:path.into(),
+                        value: path.into(),
                     },
                     Attribute {
                         name: QualName::new(None, ns!(), LocalName::from("type")),
@@ -58,10 +58,10 @@ impl SvgExtractVisitor {
                     Attribute {
                         name: QualName::new(None, ns!(), LocalName::from("id")),
                         value: uuid.to_string().into(),
-                    }
+                    },
                 ];
                 create_element("object", attrs, vec![])
-            },
+            }
             SvgImportType::Img => {
                 let attrs = vec![
                     Attribute {
@@ -71,10 +71,10 @@ impl SvgExtractVisitor {
                     Attribute {
                         name: QualName::new(None, ns!(), LocalName::from("id")),
                         value: uuid.to_string().into(),
-                    }
+                    },
                 ];
                 create_element("img", attrs, vec![])
-            },
+            }
             SvgImportType::Embed => {
                 let attrs = vec![
                     Attribute {
@@ -88,17 +88,15 @@ impl SvgExtractVisitor {
                     Attribute {
                         name: QualName::new(None, ns!(), LocalName::from("id")),
                         value: uuid.to_string().into(),
-                    }
+                    },
                 ];
                 create_element("embed", attrs, vec![])
-            },
+            }
         }
     }
 }
 
 impl NodeVisitor for SvgExtractVisitor {
-    
-  
     fn visit_element(
         &mut self,
         element_name: &QualName,
@@ -111,57 +109,46 @@ impl NodeVisitor for SvgExtractVisitor {
         match element_name {
             "svg" => {
                 log::info!("Visiting svg element");
-                
+
                 // Generate unique ID for the SVG
                 let uuid = Uuid::new_v4();
-    
+
                 // Start with opening svg tag
                 let mut svg_content = String::from("<svg");
-                
+
                 // Add all original attributes
                 for attr in element_attrs.borrow().iter() {
-                    svg_content.push_str(&format!(" {}=\"{}\"", 
-                        attr.name.local, 
-                        attr.value
-                    ));
+                    svg_content.push_str(&format!(" {}=\"{}\"", attr.name.local, attr.value));
                 }
-                
+
                 // Close opening tag
                 svg_content.push('>');
-                
+
                 // Add inner content
                 svg_content.push_str(&handle.to_html_string());
-                
+
                 // Add closing tag
                 svg_content.push_str("</svg>");
 
                 self.svgs.insert(uuid, svg_content);
-             
-              
-                
+
                 let new_node = self.create_replacement_element(uuid, self.asset_dir.clone());
                 (Some(new_node), true)
-            },
-            _ => (None, true)
+            }
+            _ => (None, true),
         }
     }
 }
 
-
-
 /// Creates a new DOM element with the specified name, attributes, and children.
-/// 
+///
 /// # Arguments
 /// * `name` - The HTML tag name for the element
 /// * `attrs` - A vector of attributes to apply to the element
 /// * `children` - A vector of child nodes to attach to this element
 fn create_element(name: &str, attrs: Vec<Attribute>, children: Vec<Handle>) -> Handle {
     let element = NodeData::Element {
-        name: html5ever::QualName::new(
-            None,
-            html5ever::ns!(),
-            html5ever::LocalName::from(name),
-        ),
+        name: html5ever::QualName::new(None, html5ever::ns!(), html5ever::LocalName::from(name)),
         attrs: RefCell::new(attrs),
         template_contents: RefCell::new(None),
         mathml_annotation_xml_integration_point: false,

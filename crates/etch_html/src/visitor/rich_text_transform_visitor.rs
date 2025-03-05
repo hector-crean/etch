@@ -193,9 +193,9 @@ fn sanitize_text(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rc_dom::RcDom;
-    use html5ever::parse_document;
-    use html5ever::tendril::TendrilSink;
+    
+    
+    
 
     fn format_html(html: &str, indent: usize) -> String {
         let mut formatted = String::new();
@@ -246,7 +246,7 @@ mod tests {
 
  
         // Create and apply the visitor
-        let mut visitor = RichTextTransformVisitor::new();
+        let visitor = RichTextTransformVisitor::new();
         let (updated_dom, visitor) = crate::file::process_html_str(html, visitor)?;
 
 

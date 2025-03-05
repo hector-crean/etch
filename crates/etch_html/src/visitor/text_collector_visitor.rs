@@ -8,6 +8,7 @@ use tendril::StrTendril;
 use super::NodeVisitor;
 
 /// A visitor that collects text content associated with HTML elements that have ID attributes.
+///
 /// This visitor traverses the DOM tree and maintains a mapping between element IDs and their
 /// contained text content.
 ///

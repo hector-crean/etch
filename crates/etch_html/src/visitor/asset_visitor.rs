@@ -1,4 +1,4 @@
-use crate::rc_dom::{Handle, NodeData};
+use crate::rc_dom::Handle;
 use crate::visitor::NodeVisitor;
 use colored::*;
 use html5ever::{Attribute, QualName};

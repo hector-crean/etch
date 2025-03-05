@@ -1,12 +1,9 @@
 use super::NodeVisitor;
 use crate::rc_dom::{Handle, NodeData};
 use html5ever::{Attribute, QualName};
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use tokio::runtime::Runtime;
-use url::Url;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,7 +69,7 @@ impl NodeVisitor for LinkVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rc_dom::RcDom;
+    
 
     #[tokio::test]
     async fn test_link_visitor() {
@@ -85,7 +82,7 @@ mod tests {
             </div>
         "###;
 
-        let mut visitor = LinkVisitor::new();
+        let visitor = LinkVisitor::new();
         let (_, visitor) = crate::file::process_html_str(html, visitor).unwrap();
 
         let urls = visitor.links();
