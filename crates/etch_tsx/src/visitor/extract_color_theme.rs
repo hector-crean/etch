@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-use swc_common::{FileName, SourceMap, Span};
-use swc_ecma_ast::*;
-use swc_ecma_visit::{Visit, VisitMut, VisitWith};
+use log::info;
 use regex::Regex;
+use std::collections::HashSet;
+use swc_ecma_ast::*;
+use swc_ecma_visit::VisitMut;
 use swc_ecma_visit::VisitMutWith;
 
 /// A visitor that updates Tailwind-style inline color definitions in JSX className attributes
@@ -13,10 +13,10 @@ pub struct ColorThemeVisitor {
 }
 
 impl ColorThemeVisitor {
-    pub fn new(pattern: &str, update_fn: impl Fn(&str) -> String + 'static) -> Self {
+    pub fn new(update_fn: impl Fn(&str) -> String + 'static) -> Self {
         Self {
             colors: HashSet::new(),
-            pattern: Regex::new(pattern).unwrap(),
+            pattern: Regex::new(r"text-(\[#[0-9a-fA-F]{6}\])").unwrap(),
             update_fn: Box::new(update_fn),
         }
     }
@@ -27,14 +27,17 @@ impl ColorThemeVisitor {
 
     fn transform_class_string(&mut self, input: &str) -> String {
         let mut result = input.to_string();
-        
+
         for cap in self.pattern.captures_iter(input) {
             if let Some(color_match) = cap.get(1) {
                 let original = color_match.as_str();
                 self.colors.insert(original.to_lowercase());
-                
+
                 let updated = (self.update_fn)(original);
-                
+
+                // Log the color transformation
+                info!("Found color: {} -> {}", original, updated);
+
                 // Replace the full match with updated version
                 if let Some(full_match) = cap.get(0) {
                     let full = full_match.as_str();
@@ -43,14 +46,12 @@ impl ColorThemeVisitor {
                 }
             }
         }
-        
+
         result
     }
 }
 
 impl VisitMut for ColorThemeVisitor {
-    
-    
     fn visit_mut_jsx_element(&mut self, node: &mut JSXElement) {
         // Process attributes
         for attr in &mut node.opening.attrs {
