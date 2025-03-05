@@ -1,14 +1,9 @@
-use etch_html::{file, visitor::{self, asset_visitor::Asset}};
+use etch_html::{file, visitor::{self}};
 
 use etch_core::walk::FileWalker;
-use log::{info, warn, error};
-use env_logger;
+use log::{info, error};
 use dotenv::dotenv;
-use tokio;
-use std::collections::{HashMap, HashSet, BTreeMap};
-use reqwest;
-use url;
-use chrono;
+use std::collections::BTreeMap;
 use std::io::{self, Write};
 use etch_html::visitor::asset_visitor::UnusedAssetFinder;
 use std::fs::File;
@@ -26,7 +21,7 @@ fn organize_assets_by_directory(assets: &[PathBuf]) -> BTreeMap<String, Vec<Path
             .to_string();
             
         organized.entry(parent)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(asset.clone());
     }
     

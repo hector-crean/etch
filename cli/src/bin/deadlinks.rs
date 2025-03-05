@@ -1,14 +1,9 @@
 use etch_html::{file, visitor::{self}};
 use etch_core::walk::FileWalker;
-use log::{info, warn, error};
-use env_logger;
+use log::{info, warn};
 use dotenv::dotenv;
-use tokio;
 use std::collections::{HashMap, HashSet};
-use reqwest;
-use url;
-use chrono;
-use std::io::{self, Write};
+use std::io::{Write};
 
 const ROOT_DIR: &str = "/Users/hectorcrean/typescript/OTS110_WebApp/src/content";
 

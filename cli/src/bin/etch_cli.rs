@@ -62,12 +62,10 @@ fn main() {
                         } else {
                             base_path.join(format!("{}.svg", key))
                         }
+                    } else if let Some(asset_dir) = asset_dir {
+                        output_dir.join(asset_dir).join(format!("{}.svg", key))
                     } else {
-                        if let Some(asset_dir) = asset_dir {
-                            output_dir.join(asset_dir).join(format!("{}.svg", key))
-                        } else {
-                            output_dir.join(format!("{}.svg", key))
-                        }
+                        output_dir.join(format!("{}.svg", key))
                     };
 
                     if let Some(parent) = svg_output_path.parent() {
