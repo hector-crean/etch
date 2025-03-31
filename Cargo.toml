@@ -8,7 +8,8 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 authors = ["Hector Crean <hectorcrean@gmail.com>"]
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
@@ -16,6 +17,7 @@ etch_core = { path = "crates/etch_core" }
 etch_html = { path = "crates/etch_html" }
 etch_md = { path = "crates/etch_md" }
 etch_tsx = { path = "crates/etch_tsx" }
+etch_figma = { path = "crates/etch_figma" }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0"
 color-eyre = "0.6.3"
