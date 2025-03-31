@@ -29,13 +29,11 @@ fn main() {
     let walker = FileWalker::new(["tsx"]);
 
     let _ = walker.visit(ROOT_DIR, |path, _| {
-        let visitor =
-            visitor::extract_color_theme::ColorThemeVisitor::new(|s| get_color_name(s).to_string());
 
+
+
+        let visitor = visitor::svg_react_visitor::SvgReactVisitor::new(tsx, "SvgComponent".to_string(), true);
         let (tsx, visitor) = visit_tsx_file_mut(path, visitor)?;
-
-        let colors = visitor.colors();
-        global_colors.extend(colors.iter().map(|s| s.to_string()));
 
         std::fs::write(path, tsx)?;
 

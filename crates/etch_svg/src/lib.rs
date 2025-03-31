@@ -45,48 +45,60 @@ impl SvgParser {
         }
     }
 
-    /// Generate a TSX string that imports motion and creates a component
-    /// that returns the parsed SVG as a `motion` component tree.
-    pub fn to_motion_tsx(&self) -> Result<String, Box<dyn Error>> {
-        let svg = self.parse()?;
-
-        let mut tsx = String::new();
-        tsx.push_str("import { motion } from 'framer-motion';\n\n");
-        tsx.push_str("export function PathDrawing() {\n");
-        tsx.push_str("    return (\n");
-        tsx.push_str(&self.generate_jsx_for_element(&svg, 2));
-        tsx.push_str("    );\n");
-        tsx.push_str("}\n");
-
-        Ok(tsx)
+    // Create a React component from the parsed SVG
+    pub fn to_react_component(&self, component_name: &str) -> Result<String, Box<dyn Error>> {
+        let svg_element = self.parse()?;
+        let jsx_content = svg_element.to_react_jsx();
+        
+        Ok(format!(
+            "import React from 'react';\n\n\
+            const {} = () => (\n\
+              {}\n\
+            );\n\n\
+            export default {};",
+            component_name, jsx_content, component_name
+        ))
     }
+}
 
-    fn generate_jsx_for_element(&self, element: &SvgElement, indent_level: usize) -> String {
-        let indent = " ".repeat(indent_level * 4);
-        let tag_name = format!("motion.{}", element.tag);
-
-        let attrs_str = self.attributes_to_string(&element.attributes);
-        if element.children.is_empty() {
-            // self-closing tag
-            format!("{}<{}{} />\n", indent, tag_name, attrs_str)
+impl SvgElement {
+    // Convert SVG element to React JSX string
+    pub fn to_react_jsx(&self) -> String {
+        let attrs = self.format_react_attributes();
+        
+        if self.children.is_empty() {
+            format!("<{}{} />", self.tag, attrs)
         } else {
-            // opening tag
-            let mut result = format!("{}<{}{}>\n", indent, tag_name, attrs_str);
-            for child in &element.children {
-                result.push_str(&self.generate_jsx_for_element(child, indent_level + 1));
-            }
-            result.push_str(&format!("{}</{}>\n", indent, tag_name));
-            result
+            let children = self.children
+                .iter()
+                .map(|child| child.to_react_jsx())
+                .collect::<Vec<_>>()
+                .join("\n");
+            
+            format!("<{}{}>\n{}\n</{}>", self.tag, attrs, children, self.tag)
         }
     }
-
-    fn attributes_to_string(&self, attributes: &[(String, String)]) -> String {
-        let mut result = String::new();
-        for (name, value) in attributes {
-            // Simple attribute handling: assume all attributes can be passed as strings
-            result.push_str(&format!(" {}=\"{}\"", name, value));
-        }
-        result
+    
+    // Format attributes for React (handling special cases)
+    fn format_react_attributes(&self) -> String {
+        self.attributes
+            .iter()
+            .map(|(name, value)| {
+                // Convert attribute names to React style (camelCase, className, etc.)
+                let react_attr = match name.as_str() {
+                    "class" => "className".to_string(),
+                    "stroke-width" => "strokeWidth".to_string(),
+                    "fill-opacity" => "fillOpacity".to_string(),
+                    "stroke-opacity" => "strokeOpacity".to_string(),
+                    "stroke-linecap" => "strokeLinecap".to_string(),
+                    "stroke-linejoin" => "strokeLinejoin".to_string(),
+                    // Add more mappings as needed
+                    _ => name.clone(),
+                };
+                
+                format!(" {}=\"{}\"", react_attr, value)
+            })
+            .collect::<String>()
     }
 }
 
@@ -103,11 +115,37 @@ mod tests {
         let parser = SvgParser::new(svg_content);
         let result = parser.parse();
         assert!(result.is_ok());
+        
+        let svg = result.unwrap();
+        assert_eq!(svg.tag, "svg");
+        assert_eq!(svg.children.len(), 1);
+        assert_eq!(svg.children[0].tag, "circle");
+    }
+    #[test]
+    fn test_tsx_file() {
+        let svg_content = r#"<svg viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="40"/>
+</svg>"#;
 
-        let tsx = parser.to_motion_tsx().unwrap();
-        println!("{}", tsx);
-        // Check that tsx contains expected motion elements
-        assert!(tsx.contains("<motion.svg"));
-        assert!(tsx.contains("<motion.circle"));
+        let parser = SvgParser::new(svg_content);
+        let react_component = parser.to_react_component("CircleIcon").unwrap();
+        
+        // Verify the component contains the React import
+        assert!(react_component.contains("import React from 'react';"));
+        
+        // Verify the component name is used correctly
+        assert!(react_component.contains("const CircleIcon = () =>"));
+        
+        // Verify the SVG attributes are included
+        assert!(react_component.contains("<svg viewBox=\"0 0 100 100\">"));
+        
+        // Verify the circle element is included with correct attributes
+        assert!(react_component.contains("<circle cx=\"50\" cy=\"50\" r=\"40\" />"));
+        
+        // Verify export statement
+        assert!(react_component.contains("export default CircleIcon;"));
     }
 }
+
+
+
