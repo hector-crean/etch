@@ -3,9 +3,9 @@ use std::error::Error;
 
 #[derive(Debug)]
 pub struct SvgElement {
-    tag: String,
-    attributes: Vec<(String, String)>,
-    children: Vec<SvgElement>,
+    pub tag: String,
+    pub attributes: Vec<(String, String)>,
+    pub children: Vec<SvgElement>,
 }
 
 pub struct SvgParser {
@@ -13,6 +13,7 @@ pub struct SvgParser {
 }
 
 impl SvgParser {
+
     pub fn new(svg_content: &str) -> Self {
         Self {
             content: svg_content.to_string(),
@@ -122,7 +123,7 @@ mod tests {
         assert_eq!(svg.children[0].tag, "circle");
     }
     #[test]
-    fn test_tsx_file() {
+    fn test_svg_to_tsx_file() {
         let svg_content = r#"<svg viewBox="0 0 100 100">
     <circle cx="50" cy="50" r="40"/>
 </svg>"#;

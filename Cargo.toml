@@ -15,6 +15,8 @@ etch_html = { path = "crates/etch_html" }
 etch_md = { path = "crates/etch_md" }
 etch_tsx = { path = "crates/etch_tsx" }
 etch_figma = { path = "crates/etch_figma" }
+etch_nextjs = { path = "crates/etch_nextjs" }
+etch_svg = { path = "crates/etch_svg" }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0"
 color-eyre = "0.6.3"
@@ -38,6 +40,7 @@ tokio = { version = "1.39.0", features = ["full"] }
 url = "2.4.0"
 clap = { version = "4.5.23", features = ["derive"] }
 colored = "2.0.0"
+ts-rs = "10.1.0"
 
 [profile.release]
 opt-level = 3

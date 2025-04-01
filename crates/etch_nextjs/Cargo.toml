@@ -1,0 +1,20 @@
+[package]
+name = "etch_nextjs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json =  { workspace = true }
+walkdir =  { workspace = true }
+strum =  { workspace = true }
+thiserror =  { workspace = true }
+color-eyre = { workspace = true }
+env_logger =  { workspace = true }
+log =  { workspace = true }
+dotenv = { workspace = true }
+ts-rs = { workspace = true }
+# ts-rs = { version = "10.1.0", features = ["serde-compat", "bytes",  "chrono", "serde_json", "tokio", "url", "uuid"] }

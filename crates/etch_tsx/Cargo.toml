@@ -11,12 +11,13 @@ env_logger =  { workspace = true }
 log = { workspace = true }
 walkdir = { workspace = true }
 serde_json = { workspace = true }
-
-
-
+ts-rs = { workspace = true }
+etch_svg = { workspace = true }
 swc_common =  { workspace = true }
 swc_ecma_ast =  { workspace = true }
 swc_ecma_codegen = { workspace = true }
 swc_ecma_parser =  { workspace = true }
 swc_ecma_visit =  { workspace = true }
 regex = { workspace = true }
+strum = { workspace = true }
+serde = { workspace = true }
