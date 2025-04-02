@@ -1,7 +1,10 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "etch_core"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+
 
 [dependencies]
 serde = { workspace = true }

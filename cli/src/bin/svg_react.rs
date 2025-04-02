@@ -10,18 +10,29 @@ use etch_tsx::visitor::svg_react_visitor::{
 use etch_tsx::{file::visit_tsx_file_mut, visitor};
 use log::info;
 use serde_json::json;
+use std::path::PathBuf;
 use std::{collections::HashSet, path::Path};
 
-const SVG_ROOT_DIR: &str = r#"/Users/hectorcrean/rust/etch/figma-app/figma-export"#;
-const TSX_ROOT_DIR: &str = r#"/Users/hectorcrean/rust/etch/figma-app/src/app"#;
+const SVG_RELATIVE_DIR: &str = r#"figma-app/figma-export"#;
+const TSX_RELATIVE_DIR: &str = r#"figma-app/src/app"#;
 
 fn main() {
     dotenv().ok();
     env_logger::init();
 
+    // Get workspace root directory
+    let workspace_dir = get_workspace_root().unwrap_or_else(|| PathBuf::from("."));
+
+    // Create absolute paths from the relative ones
+    let svg_root_dir = workspace_dir.join(SVG_RELATIVE_DIR);
+    let tsx_root_dir = workspace_dir.join(TSX_RELATIVE_DIR);
+
+    info!("SVG source directory: {}", svg_root_dir.display());
+    info!("TSX output directory: {}", tsx_root_dir.display());
+
     let walker = FileWalker::new(["svg"]);
 
-    let _ = walker.visit(SVG_ROOT_DIR, |path, relative_path| {
+    let _ = walker.visit(svg_root_dir, |path, relative_path| {
         let svg = std::fs::read_to_string(path)?;
 
         let converter = SvgConverter::new(&svg);
@@ -34,9 +45,7 @@ fn main() {
             .unwrap()
             .join(format!("{}", file_stem.to_string_lossy()));
 
-        let new_path = Path::new(TSX_ROOT_DIR)
-            .join(new_relative_path)
-            .join("page.tsx");
+        let new_path = tsx_root_dir.join(new_relative_path).join("page.tsx");
 
         // Create parent directories if they don't exist
         if let Some(parent) = new_path.parent() {
@@ -114,12 +123,15 @@ fn main() {
         );
 
         // 3. Toast Notifications
-        visitor.register_callback("notification-bell".to_string(), Callback {
-            trigger: Event::Click,
-            action: Action::Toast(ShowToastOptions {
-                message: "New notification".to_string(),
-            }),
-        });
+        visitor.register_callback(
+            "notification-bell".to_string(),
+            Callback {
+                trigger: Event::Click,
+                action: Action::Toast(ShowToastOptions {
+                    message: "New notification".to_string(),
+                }),
+            },
+        );
 
         visitor.register_component_wrapper(
             "tooltip-button".to_string(),
@@ -147,7 +159,7 @@ fn main() {
 
         // Add "use client"; directive and import Button component
         tsx = format!(
-            "\"use client\";\n\nimport {{ Button }} from \"@/components/ui/button\";\n\n{}", 
+            "\"use client\";\n\nimport {{ Button }} from \"@/components/ui/button\";\n\n{}",
             tsx
         );
 
@@ -174,4 +186,27 @@ fn format_tsx_file(path: &Path) -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+/// Get the workspace root directory by looking for Cargo.toml
+fn get_workspace_root() -> Option<PathBuf> {
+    let mut current_dir = std::env::current_dir().ok()?;
+
+    loop {
+        let cargo_toml = current_dir.join("Cargo.toml");
+        if cargo_toml.exists() {
+            // Check if this is a workspace Cargo.toml
+            let content = std::fs::read_to_string(&cargo_toml).ok()?;
+            if content.contains("[workspace]") {
+                return Some(current_dir);
+            }
+        }
+
+        // Go up one directory
+        if !current_dir.pop() {
+            break;
+        }
+    }
+
+    None
 }

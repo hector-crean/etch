@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "etch_figma"
 version.workspace = true

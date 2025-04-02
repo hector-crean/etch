@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "etch_nextjs"
 version.workspace = true

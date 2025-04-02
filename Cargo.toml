@@ -1,6 +1,7 @@
 [workspace]
 members = ["cli", "crates/*"]
 resolver = "2"
+edition = "2024"
 
 [workspace.package]
 version = "0.1.0"
