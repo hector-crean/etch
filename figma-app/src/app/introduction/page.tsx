@@ -1,16 +1,7 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 
-import { toast } from "sonner";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Drawer,
   DrawerClose,
@@ -34,39 +21,31 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer";
+} from '@/components/ui/drawer';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { toast } from 'sonner';
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import * as React from "react";
-import { SVGProps } from "react";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import * as React from 'react';
+import { SVGProps } from 'react';
 const Page = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    width={900}
-    height={700}
-    viewBox="0 0 900 700"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
+  <svg width={900} height={700} viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg" {...props}>
     <rect width={900} height={700} fill="#f9fafc" rx={8} ry={8} />
     <rect x={0} y={0} width={900} height={80} fill="#2a3548" rx={8} ry={8} />
-    <text
-      x={40}
-      y={50}
-      fontSize={28}
-      fontFamily="Arial"
-      fill="white"
-      fontWeight="bold"
-    >
-      {"Interactive Controls"}
+    <text x={40} y={50} fontSize={28} fontFamily="Arial" fill="white" fontWeight="bold">
+      {'Interactive Controls'}
     </text>
     <g
       id="notification-bell"
       transform="translate(800, 40)"
       onClick={(e) => {
-        toast("New notification");
+        toast('New notification');
       }}
     >
       <path
@@ -87,28 +66,13 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
         stroke="#e0e0e0"
         strokeWidth={1}
       />
-      <text
-        x={20}
-        y={40}
-        fontSize={22}
-        fontFamily="Arial"
-        fill="#2a3548"
-        fontWeight="bold"
-      >
-        {"Basic UI Controls"}
+      <text x={20} y={40} fontSize={22} fontFamily="Arial" fill="#2a3548" fontWeight="bold">
+        {'Basic UI Controls'}
       </text>
       <g transform="translate(30, 70)">
         <Dialog>
           <DialogTrigger asChild>
-            <rect
-              id="modal-button"
-              x={0}
-              y={0}
-              width={140}
-              height={50}
-              rx={8}
-              fill="#4361ee"
-            />
+            <rect id="modal-button" x={0} y={0} width={140} height={50} rx={8} fill="#4361ee" />
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -117,13 +81,13 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
             </DialogHeader>
             <div
               dangerouslySetInnerHTML={{
-                __html: "Modal Content",
+                __html: 'Modal Content',
               }}
             ></div>
           </DialogContent>
         </Dialog>
         <text x={30} y={30} fontSize={16} fontFamily="Arial" fill="white">
-          {"Open Modal"}
+          {'Open Modal'}
         </text>
       </g>
       <g transform="translate(200, 70)">
@@ -144,32 +108,25 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
             <p className="text-sm text-muted-foreground"></p>
             <div
               dangerouslySetInnerHTML={{
-                __html: "Hover Card Content",
+                __html: 'Hover Card Content',
               }}
             ></div>
           </HoverCardContent>
         </HoverCard>
         <text x={25} y={30} fontSize={16} fontFamily="Arial" fill="white">
-          {"Hover Card"}
+          {'Hover Card'}
         </text>
       </g>
       <g transform="translate(30, 150)">
         <div></div>
         <text x={55} y={30} fontSize={16} fontFamily="Arial" fill="white">
-          {"Link"}
+          {'Link'}
         </text>
       </g>
       <g transform="translate(200, 150)">
         <div></div>
-        <text
-          x={67}
-          y={32}
-          fontSize={24}
-          fontFamily="Arial"
-          fill="white"
-          fontWeight="bold"
-        >
-          {"?"}
+        <text x={67} y={32} fontSize={24} fontFamily="Arial" fill="white" fontWeight="bold">
+          {'?'}
         </text>
       </g>
     </g>
@@ -185,22 +142,15 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
         stroke="#e0e0e0"
         strokeWidth={1}
       />
-      <text
-        x={20}
-        y={40}
-        fontSize={22}
-        fontFamily="Arial"
-        fill="#2a3548"
-        fontWeight="bold"
-      >
-        {"Navigation Controls"}
+      <text x={20} y={40} fontSize={22} fontFamily="Arial" fill="#2a3548" fontWeight="bold">
+        {'Navigation Controls'}
       </text>
       <Popover>
         <PopoverTrigger asChild>
           <g id="popover-button" transform="translate(30, 80)">
             <rect x={0} y={0} width={140} height={50} rx={8} fill="#7209b7" />
             <text x={40} y={30} fontSize={16} fontFamily="Arial" fill="white">
-              {"Popover"}
+              {'Popover'}
             </text>
             <circle cx={120} cy={25} r={10} fill="white" />
             <rect x={115} y={20} width={10} height={2} fill="#7209b7" />
@@ -213,7 +163,7 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
           <p className="text-sm text-muted-foreground"></p>
           <div
             dangerouslySetInnerHTML={{
-              __html: "Popover Content",
+              __html: 'Popover Content',
             }}
           ></div>
         </PopoverContent>
@@ -223,14 +173,9 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
           <g id="sheet-button" transform="translate(200, 80)">
             <rect x={0} y={0} width={140} height={50} rx={8} fill="#b5179e" />
             <text x={30} y={30} fontSize={16} fontFamily="Arial" fill="white">
-              {"Open Sheet"}
+              {'Open Sheet'}
             </text>
-            <path
-              d="M125,20 L115,25 L125,30"
-              fill="none"
-              stroke="white"
-              strokeWidth={2}
-            />
+            <path d="M125,20 L115,25 L125,30" fill="none" stroke="white" strokeWidth={2} />
           </g>
         </SheetTrigger>
         <SheetContent side="left">
@@ -240,7 +185,7 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
           </SheetHeader>
           <div
             dangerouslySetInnerHTML={{
-              __html: "Sheet Content",
+              __html: 'Sheet Content',
             }}
           ></div>
         </SheetContent>
@@ -248,15 +193,7 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
       <g transform="translate(115, 160)">
         <Drawer>
           <DrawerTrigger asChild>
-            <rect
-              id="drawer-button"
-              x={0}
-              y={0}
-              width={140}
-              height={50}
-              rx={8}
-              fill="#480ca8"
-            />
+            <rect id="drawer-button" x={0} y={0} width={140} height={50} rx={8} fill="#480ca8" />
           </DrawerTrigger>
           <DrawerContent>
             <DrawerHeader>
@@ -271,19 +208,14 @@ const Page = (props: SVGProps<SVGSVGElement>) => (
           </DrawerContent>
         </Drawer>
         <text x={35} y={30} fontSize={16} fontFamily="Arial" fill="white">
-          {"Drawer"}
+          {'Drawer'}
         </text>
-        <path
-          d="M110,15 L120,25 L110,35"
-          fill="none"
-          stroke="white"
-          strokeWidth={2}
-        />
+        <path d="M110,15 L120,25 L110,35" fill="none" stroke="white" strokeWidth={2} />
       </g>
     </g>
     <rect x={40} y={670} width={820} height={1} fill="#e0e0e0" />
     <text x={40} y={690} fontSize={14} fontFamily="Arial" fill="#6c757d">
-      {"Interactive SVG Demo for the svg_react.rs script"}
+      {'Interactive SVG Demo for the svg_react.rs script'}
     </text>
   </svg>
 );
