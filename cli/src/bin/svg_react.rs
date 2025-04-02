@@ -1,20 +1,19 @@
 use dotenv::dotenv;
 use etch_core::walk::FileWalker;
-use etch_svg::SvgParser;
+use etch_svg::SvgConverter;
 use etch_tsx::visitor::svg_react_visitor::{
-    Action, Callback, Event, 
-    OpenModalOptions, CloseModalOptions, ToggleModalOptions,
-    OpenSheetOptions, CloseSheetOptions,
-    ShowToastOptions, SelectTabOptions, ToggleAccordionOptions,
-    OpenDropdownOptions, CloseDropdownOptions
+    Action, Callback, CloseDropdownOptions, CloseModalOptions, CloseSheetOptions, ComponentWrapper,
+    DialogOptions, DrawerOptions, Event, HoverCardOptions, LinkOptions, OpenDropdownOptions,
+    OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions, SheetOptions,
+    ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
 };
 use etch_tsx::{file::visit_tsx_file_mut, visitor};
 use log::info;
-use std::{collections::HashSet, path::Path};
 use serde_json::json;
+use std::{collections::HashSet, path::Path};
 
-
-const ROOT_DIR: &str = r#"/Users/hectorcrean/rust/etch/example-svgs"#;
+const SVG_ROOT_DIR: &str = r#"/Users/hectorcrean/rust/etch/figma-app/figma-export"#;
+const TSX_ROOT_DIR: &str = r#"/Users/hectorcrean/rust/etch/figma-app/src/app"#;
 
 fn main() {
     dotenv().ok();
@@ -22,172 +21,157 @@ fn main() {
 
     let walker = FileWalker::new(["svg"]);
 
-    let _ = walker.visit(ROOT_DIR, |path, _| {
+    let _ = walker.visit(SVG_ROOT_DIR, |path, relative_path| {
         let svg = std::fs::read_to_string(path)?;
 
-        let parser = SvgParser::new(&svg);
-        let react_component = parser.to_react_component("Page").unwrap();
+        let converter = SvgConverter::new(&svg);
+        let page = converter.to_react_component("Page").unwrap();
 
-        let file_stem = path.file_stem().unwrap_or_default();
+        let file_stem = relative_path.file_stem().unwrap_or_default();
 
-        let new_path = path
+        let new_relative_path = relative_path
             .parent()
             .unwrap()
-            .join(format!("{}/page.tsx", file_stem.to_string_lossy()));
+            .join(format!("{}", file_stem.to_string_lossy()));
 
-        std::fs::write(new_path.clone(), react_component)?;
+        let new_path = Path::new(TSX_ROOT_DIR)
+            .join(new_relative_path)
+            .join("page.tsx");
+
+        // Create parent directories if they don't exist
+        if let Some(parent) = new_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        std::fs::write(new_path.clone(), page)?;
 
         let mut visitor = visitor::svg_react_visitor::FigmaExportVisitor::new();
 
         // 1. Modal Actions
-        visitor.register_callback(
-            "blue-circle".to_string(), 
-            Callback {
-                trigger: Event::Click,
-            action: Action::OpenModal(OpenModalOptions {
-                    id: "modal-1".to_string(),
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "close-button".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::CloseModal(CloseModalOptions {
-                    id: "modal-1".to_string(),
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "toggle-button".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::ToggleModal(ToggleModalOptions {
-                    id: "modal-1".to_string(),
-                }),
-            }
-        );
-        
-        // 2. Sheet/Drawer Actions
-        visitor.register_callback(
-            "menu-icon".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::OpenSheet(OpenSheetOptions {
-                    id: "side-menu".to_string(),
-                    side: Some("left".to_string()),
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "sheet-close".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::CloseSheet(CloseSheetOptions {
-                    id: "side-menu".to_string(),
-                }),
-            }
-        );
-        
-        // 3. Toast Notifications
-        visitor.register_callback(
-            "notification-bell".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::ShowToast(ShowToastOptions {
-                    title: "New notification".to_string(),
-                    description: Some("You have a new message".to_string()),
-                    variant: Some("default".to_string()),
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "error-icon".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::ShowToast(ShowToastOptions {
-                    title: "Error occurred".to_string(),
-                    description: Some("Please try again later".to_string()),
-                    variant: Some("destructive".to_string()),
-                }),
-            }
-        );
-        
-        // 4. Tab Selection
-        visitor.register_callback(
-            "tab-item-1".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::SelectTab(SelectTabOptions {
-                    tabGroupId: "main-tabs".to_string(),
-                    tabId: "tab1".to_string(),
-                }),
-            }
-        );
-        
-        // 5. Accordion Toggle
-        visitor.register_callback(
-            "faq-item".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::ToggleAccordion(ToggleAccordionOptions {
-                    id: "faq-1".to_string(),
-                }),
-            }
-        );
-        
-        // 6. Dropdown Actions
-        visitor.register_callback(
-            "dropdown-trigger".to_string(), 
-            Callback {
-                trigger: Event::Click,
-                action: Action::OpenDropdown(OpenDropdownOptions {
-                    id: "user-menu".to_string(),
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "dropdown-close".to_string(), 
-            Callback {
-                trigger: Event::MouseLeave,
-                action: Action::CloseDropdown(CloseDropdownOptions {
-                    id: "user-menu".to_string(),
-                }),
-            }
-        );
-        
-        // Different event types demonstration
-        visitor.register_callback(
-            "hover-area".to_string(), 
-            Callback {
-                trigger: Event::MouseEnter,
-                action: Action::ShowToast(ShowToastOptions {
-                    title: "Hovered!".to_string(),
-                    description: None,
-                    variant: None,
-                }),
-            }
-        );
-        
-        visitor.register_callback(
-            "input-field".to_string(), 
-            Callback {
-                trigger: Event::Focus,
-                action: Action::OpenDropdown(OpenDropdownOptions {
-                    id: "suggestions".to_string(),
-                }),
-            }
+        visitor.register_component_wrapper(
+            "modal-button".to_string(),
+            ComponentWrapper::Dialog(DialogOptions {
+                id: "modal-1".to_string(),
+                title: Some("Modal Title".to_string()),
+                description: Some("Modal Description".to_string()),
+                content: Some("Modal Content".to_string()),
+                has_footer: Some(true),
+                footer_buttons: Some(vec![]),
+            }),
         );
 
-        let (tsx, visitor) = visit_tsx_file_mut(new_path.clone(), visitor)?;
+        visitor.register_component_wrapper(
+            "hover-card-button".to_string(),
+            ComponentWrapper::HoverCard(HoverCardOptions {
+                id: "hover-card-1".to_string(),
+                trigger_id: None,
+                title: Some("Hover Card Title".to_string()),
+                description: Some("Hover Card Description".to_string()),
+                content: Some("Hover Card Content".to_string()),
+                open_delay: Some(100),
+                close_delay: Some(100),
+            }),
+        );
+
+        visitor.register_component_wrapper(
+            "link-button".to_string(),
+            ComponentWrapper::Link(LinkOptions {
+                id: "link-1".to_string(),
+                href: "https://www.google.com".to_string(),
+                target: Some("_blank".to_string()),
+                rel: Some("noopener noreferrer".to_string()),
+                as_button: Some(true),
+                variant: Some("default".to_string()),
+                size: Some("default".to_string()),
+            }),
+        );
+
+        // 2. Sheet/Drawer Actions
+        visitor.register_component_wrapper(
+            "popover-button".to_string(),
+            ComponentWrapper::Popover(PopoverOptions {
+                id: "popover-1".to_string(),
+                trigger_id: None,
+                title: Some("Popover Title".to_string()),
+                description: Some("Popover Description".to_string()),
+                content: Some("Popover Content".to_string()),
+                alignment: Some("bottom".to_string()),
+            }),
+        );
+
+        visitor.register_component_wrapper(
+            "sheet-button".to_string(),
+            ComponentWrapper::Sheet(SheetOptions {
+                id: "sheet-1".to_string(),
+                trigger_id: None,
+                title: Some("Sheet Title".to_string()),
+                description: Some("Sheet Description".to_string()),
+                content: Some("Sheet Content".to_string()),
+                side: Some("left".to_string()),
+                has_footer: Some(true),
+                footer_buttons: Some(vec![]),
+            }),
+        );
+
+        // 3. Toast Notifications
+        visitor.register_callback("notification-bell".to_string(), Callback {
+            trigger: Event::Click,
+            action: Action::Toast(ShowToastOptions {
+                message: "New notification".to_string(),
+            }),
+        });
+
+        visitor.register_component_wrapper(
+            "tooltip-button".to_string(),
+            ComponentWrapper::Tooltip(TooltipOptions {
+                id: "tooltip-1".to_string(),
+                trigger_id: None,
+                content: "Tooltip Content".to_string(),
+                side: Some("bottom".to_string()),
+                align: Some("center".to_string()),
+                delay_duration: Some(100),
+                skip_delay_duration: Some(100),
+            }),
+        );
+
+        visitor.register_component_wrapper(
+            "drawer-button".to_string(),
+            ComponentWrapper::Drawer(DrawerOptions {
+                id: "dropdown-trigger".to_string(),
+                title: Some("Drawer Title".to_string()),
+                description: Some("Drawer Description".to_string()),
+            }),
+        );
+
+        let (mut tsx, visitor) = visit_tsx_file_mut(new_path.clone(), visitor)?;
+
+        // Add "use client"; directive and import Button component
+        tsx = format!(
+            "\"use client\";\n\nimport {{ Button }} from \"@/components/ui/button\";\n\n{}", 
+            tsx
+        );
 
         std::fs::write(new_path.clone(), tsx)?;
 
+        // Format the TSX file using Prettier
+        format_tsx_file(&new_path)?;
+
         Ok(())
     });
+}
+
+/// Format a TypeScript/TSX file using Prettier
+fn format_tsx_file(path: &Path) -> std::io::Result<()> {
+    use std::process::Command;
+
+    let output = Command::new("npx")
+        .args(["prettier", "--write", path.to_str().unwrap()])
+        .output()?;
+
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        eprintln!("Error formatting TSX file: {}", error);
+    }
+
+    Ok(())
 }

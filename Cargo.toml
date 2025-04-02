@@ -41,6 +41,7 @@ url = "2.4.0"
 clap = { version = "4.5.23", features = ["derive"] }
 colored = "2.0.0"
 ts-rs = "10.1.0"
+svgr-rs = "0.2.0"
 
 [profile.release]
 opt-level = 3
