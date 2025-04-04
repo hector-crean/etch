@@ -70,6 +70,6 @@ impl FileWalker {
     fn has_allowed_extension(&self, path: &Path) -> bool {
         path.extension()
             .and_then(|ext| ext.to_str())
-            .map_or(false, |ext| self.allowed_extensions.contains(ext))
+            .is_some_and(|ext| self.allowed_extensions.contains(ext))
     }
 }

@@ -1,7 +1,4 @@
-use std::fs;
 use std::path::Path;
-use swc_common::{SourceMap, sync::Lrc};
-use swc_ecma_ast::Module;
 use swc_ecma_codegen::{Emitter, text_writer::JsWriter};
 use swc_ecma_visit::VisitMut;
 
@@ -11,6 +8,12 @@ use crate::file::parse_tsx_file;
 /// Pipeline for processing TypeScript files with multiple SWC visitors
 pub struct Pipeline {
     visitors: Vec<Box<dyn VisitMut>>,
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Pipeline {

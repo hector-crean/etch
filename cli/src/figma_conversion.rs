@@ -4,16 +4,15 @@ use etch_nextjs::*;
 use etch_svg::SvgConverter;
 use etch_tsx::pipeline::Pipeline;
 use etch_tsx::visitor::framer_motion_visitor::{AnimationConfig, FramerMotionVisitor};
-use etch_tsx::visitor::inject_shadcn_ui_visitor::{
-    AddWrappersAndCallbacksVisitor, InjectShadcnUiVisitor,
-};
+use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
 use etch_tsx::visitor::nextjs_visitor::Runtime;
 use etch_tsx::visitor::{
+    inject_callbacks_visitor::InjectCallbacksVisitor,
     inject_shadcn_ui_visitor::{
-        Action, Callback, CloseDropdownOptions, CloseModalOptions, CloseSheetOptions,
-        ComponentWrapper, DialogOptions, DrawerOptions, Event, HoverCardOptions, LinkOptions,
-        OpenDropdownOptions, OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions,
-        SheetOptions, ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
+        CloseDropdownOptions, CloseModalOptions, CloseSheetOptions, ComponentWrapper,
+        DialogOptions, DrawerOptions, HoverCardOptions, LinkOptions, OpenDropdownOptions,
+        OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions, SheetOptions,
+        ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
     },
     nextjs_visitor::NextjsVisitor,
 };
@@ -116,6 +115,7 @@ impl Project {
                     let mut pipeline = Pipeline::new();
 
                     pipeline
+                        .add_visitor(InjectCallbacksVisitor::new(file.data.callbacks.clone()))
                         .add_visitor(InjectShadcnUiVisitor::new(
                             file.data.component_wrappers.clone(),
                             file.data.action_imports.clone(),

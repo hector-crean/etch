@@ -1,13 +1,10 @@
-use log::info;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::convert::TryFrom;
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     str::FromStr,
 };
 use strum::{AsRefStr, EnumString};
-use thiserror;
 use ts_rs::TS;
 use walkdir::WalkDir;
 pub struct Cli;
@@ -38,10 +35,7 @@ pub enum AssetFolderKind {
 
 impl AssetFolderKind {
     pub fn is_asset_folder_str(folder: &str) -> bool {
-        match AssetFolderKind::try_from(folder) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        AssetFolderKind::try_from(folder).is_ok()
     }
 }
 
@@ -167,6 +161,12 @@ pub enum AppRouterEntry<T> {
     File(File<T>),
 }
 
+impl Default for Cli {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cli {
     pub fn new() -> Self {
         Self
@@ -193,7 +193,7 @@ impl Cli {
 }
 
 fn build_tree<T: Default>(path: &Path, base_dir: &Path) -> Result<AppRouterEntry<T>, AppRouterError> {
-    let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
+    let relative_path = path.strip_prefix(base_dir).unwrap_or(path);
     let path_segment = path.file_name().unwrap().to_string_lossy().into_owned();
 
     if path.is_dir() {

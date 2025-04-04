@@ -1,8 +1,6 @@
-use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
-use swc_common::{DUMMY_SP, Span};
+use swc_common::DUMMY_SP;
 use swc_ecma_ast::*;
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 use ts_rs::TS;

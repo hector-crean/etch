@@ -29,7 +29,7 @@ impl VisitMut for NextjsVisitor {
         let has_directive = module.body.iter().any(|item| {
             if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = item {
                 if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
-                    return value.to_string() == directive_text;
+                    return *value == directive_text;
                 }
             }
             false

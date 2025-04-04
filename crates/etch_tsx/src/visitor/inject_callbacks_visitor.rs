@@ -1,16 +1,10 @@
 use log::info;
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value as JsonValue, json};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::path::Path;
-use std::path::PathBuf;
 use strum::{AsRefStr, Display, EnumString};
-use swc_atoms::Atom;
-use swc_atoms::atom;
-use swc_common::{DUMMY_SP, Span, SyntaxContext};
+use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::*;
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 use ts_rs::TS;
@@ -268,7 +262,7 @@ fn create_event_handler(callback: &Callback, id: String) -> Expr {
         body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
             span: DUMMY_SP,
             ctxt: SyntaxContext::empty(),
-            stmts: stmts,
+            stmts,
         })),
         is_async: false,
         is_generator: false,

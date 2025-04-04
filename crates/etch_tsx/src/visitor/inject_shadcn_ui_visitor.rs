@@ -1,16 +1,9 @@
-use log::info;
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value as JsonValue, json};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::path::Path;
-use std::path::PathBuf;
-use strum::{AsRefStr, Display, EnumString};
 use swc_atoms::Atom;
-use swc_atoms::atom;
-use swc_common::{DUMMY_SP, Span, SyntaxContext};
+use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::*;
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 use ts_rs::TS;
@@ -124,7 +117,7 @@ impl InjectShadcnUiVisitor {
     pub fn register_action_import(&mut self, action_name: &str, import_path: &str) {
         self.action_imports
             .entry(import_path.to_string())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(action_name.to_string());
     }
 
@@ -505,7 +498,7 @@ fn create_dialog_component(trigger_element: JSXElement, options: &DialogOptions)
     };
 
     // 2. Create DialogTrigger with asChild prop
-    let mut trigger_jsx = JSXElement {
+    let trigger_jsx = JSXElement {
         span: DUMMY_SP,
         opening: JSXOpeningElement {
             span: DUMMY_SP,
