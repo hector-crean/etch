@@ -1,7 +1,7 @@
+import { FigmaConversion } from '../../cli/bindings/FigmaConversion';
 import { AppRouterEntry } from '../../crates/etch_nextjs/bindings/AppRouterEntry';
-import { FigmaExportVisitor } from '../../crates/etch_tsx/bindings/FigmaExportVisitor';
 
-const fileTree: AppRouterEntry<FigmaExportVisitor>[] = [
+const fileTree: AppRouterEntry<FigmaConversion>[] = [
   {
     type: 'Directory',
     path_segment: 'slides',
@@ -12,9 +12,18 @@ const fileTree: AppRouterEntry<FigmaExportVisitor>[] = [
         type: 'File',
         file_kind: 'Page',
         path_segment: 'page.tsx',
-        relative_path: 'slides/page.tsx',
+        relative_path: 'slides\\page.tsx',
         data: {
-          source_file: '/Users/hectorcrean/rust/etch/figma-app/figma/slide-1a.svg',
+          source_file: `C:\\Users\\Hector.C\\rust\\etch\\figma-app\\figma\\slide-1a.svg`,
+          animations: {
+            'Vector_3': {
+              element_id: 'OSA DISEASE BURDEN',
+              animation_type: 'PathDrawing',
+              custom_delay: 0.5,
+              stroke_color: '#ff0088',
+              inherit_children: true,
+            },
+          },
           callbacks: {
             'close-button': [
               {

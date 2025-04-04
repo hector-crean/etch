@@ -1,9 +1,9 @@
+use etch_tsx::error::TsxError;
 use std::collections::HashSet;
 use std::io;
 use std::path::Path;
-use etch_tsx::file::TsxError;
-use walkdir::WalkDir;
 use thiserror::Error;
+use walkdir::WalkDir;
 
 #[derive(Error, Debug)]
 pub enum FileWalkerError {
@@ -45,7 +45,11 @@ impl FileWalker {
         Ok(())
     }
 
-    pub async fn visit_async<P, F, Fut>(&self, directory: P, operation: F) -> Result<(), FileWalkerError>
+    pub async fn visit_async<P, F, Fut>(
+        &self,
+        directory: P,
+        operation: F,
+    ) -> Result<(), FileWalkerError>
     where
         P: AsRef<Path>,
         F: Fn(&Path, &Path) -> Fut,
@@ -69,4 +73,3 @@ impl FileWalker {
             .map_or(false, |ext| self.allowed_extensions.contains(ext))
     }
 }
-

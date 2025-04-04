@@ -1,3 +1,5 @@
 pub mod extract_color_theme;
-pub mod svg_react_visitor;
 pub mod framer_motion_visitor;
+pub mod inject_callbacks_visitor;
+pub mod inject_shadcn_ui_visitor;
+pub mod nextjs_visitor;

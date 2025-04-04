@@ -10,8 +10,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export)]
 pub struct FramerMotionVisitor {
-    pub source_file: PathBuf,
-    pub animation_config: HashMap<String, AnimationConfig>,
+    pub animations: HashMap<String, AnimationConfig>,
     // Add a counter to track the position in the SVG hierarchy
     custom_counter: usize,
     // Track current parent element for animation inheritance
@@ -48,10 +47,9 @@ pub enum AnimationType {
 }
 
 impl FramerMotionVisitor {
-    pub fn new<P: AsRef<std::path::Path>>(source_file: P) -> Self {
+    pub fn new(animations: HashMap<String, AnimationConfig>) -> Self {
         Self {
-            source_file: source_file.as_ref().to_path_buf(),
-            animation_config: HashMap::new(),
+            animations,
             custom_counter: 0,
             current_parent_id: None,
             current_parent_config: None,
@@ -60,7 +58,7 @@ impl FramerMotionVisitor {
     }
 
     pub fn register_animation(&mut self, element_id: String, config: AnimationConfig) {
-        self.animation_config.insert(element_id, config);
+        self.animations.insert(element_id, config);
     }
 
     // Helper to create the draw variants object
@@ -413,7 +411,7 @@ impl VisitMut for FramerMotionVisitor {
             })],
             src: Box::new(Str {
                 span: DUMMY_SP,
-                value: "framer-motion".into(),
+                value: "motion/react".into(),
                 raw: None,
             }),
             type_only: false,
@@ -557,7 +555,7 @@ impl VisitMut for FramerMotionVisitor {
         
         // Check if this element has a specific animation config
         let has_direct_config = if let Some(id) = &element_id {
-            self.animation_config.contains_key(id)
+            self.animations.contains_key(id)
         } else {
             false
         };
@@ -565,7 +563,7 @@ impl VisitMut for FramerMotionVisitor {
         // If this element has a direct animation config, update the current parent
         if has_direct_config  {
             if let Some(id) = &element_id {
-                if let Some(config) = self.animation_config.get(id).cloned() {
+                if let Some(config) = self.animations.get(id).cloned() {
                     // Only set as parent if inheritance is enabled
                     if config.inherit_children {
                         self.current_parent_id = Some(id.clone());
@@ -627,7 +625,7 @@ impl VisitMut for FramerMotionVisitor {
                 // Get the appropriate config (direct or inherited)
                 let config = if has_direct_config {
                     if let Some(id) = &element_id {
-                        self.animation_config.get(id).cloned()
+                        self.animations.get(id).cloned()
                     } else {
                         None
                     }
