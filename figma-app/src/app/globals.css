@@ -122,7 +122,6 @@
   }
 }
 
-
 * {
   font-family: 'Poppins', sans-serif;
 }
@@ -133,16 +132,11 @@ body {
   font-style: normal;
 }
 
-
-
-
-
 @layer components {
-  [data-slot*="trigger"] {
+  [data-slot*='trigger'] {
     @apply transition-all duration-200 ease-in-out;
   }
-  [data-slot*="trigger"]:hover {
+  [data-slot*='trigger']:hover {
     @apply brightness-150;
   }
-  
 }

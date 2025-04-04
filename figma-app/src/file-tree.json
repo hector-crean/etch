@@ -22,11 +22,15 @@
             }
           },
           "callbacks": {
-            "close-button": [
+            "dialog-button": [
               {
-                "action": {
-                  "type": "Toast",
-                  "message": "Hello, world!"
+                "handler": {
+                  "name": "closeButton",
+                  "parameters": [],
+                  "return_type": {
+                    "typeKind": "Void"
+                  },
+                  "code": "console.log(\"closeButton\")"
                 },
                 "trigger": "Click"
               }

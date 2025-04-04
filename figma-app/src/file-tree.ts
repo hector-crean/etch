@@ -16,7 +16,7 @@ const fileTree: AppRouterEntry<FigmaConversion>[] = [
         data: {
           source_file: `C:\\Users\\Hector.C\\rust\\etch\\figma-app\\figma\\slide-1a.svg`,
           animations: {
-            'Vector_3': {
+            Vector_3: {
               element_id: 'OSA DISEASE BURDEN',
               animation_type: 'PathDrawing',
               custom_delay: 0.5,
@@ -25,11 +25,13 @@ const fileTree: AppRouterEntry<FigmaConversion>[] = [
             },
           },
           callbacks: {
-            'close-button': [
+            'dialog-button': [
               {
-                action: {
-                  type: 'Toast',
-                  message: 'Hello, world!',
+                handler: {
+                  name: 'closeButton',
+                  parameters: [],
+                  return_type: { typeKind: 'Void' },
+                  code: 'console.log("closeButton")',
                 },
                 trigger: 'Click',
               },

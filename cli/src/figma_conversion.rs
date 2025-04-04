@@ -1,25 +1,17 @@
-use dotenv::dotenv;
-use etch_core::walk::FileWalker;
 use etch_nextjs::*;
 use etch_svg::SvgConverter;
 use etch_tsx::pipeline::Pipeline;
 use etch_tsx::visitor::framer_motion_visitor::{AnimationConfig, FramerMotionVisitor};
+use etch_tsx::visitor::inject_callbacks_visitor::Callback;
 use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
 use etch_tsx::visitor::nextjs_visitor::Runtime;
 use etch_tsx::visitor::{
     inject_callbacks_visitor::InjectCallbacksVisitor,
-    inject_shadcn_ui_visitor::{
-        CloseDropdownOptions, CloseModalOptions, CloseSheetOptions, ComponentWrapper,
-        DialogOptions, DrawerOptions, HoverCardOptions, LinkOptions, OpenDropdownOptions,
-        OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions, SheetOptions,
-        ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
-    },
+    inject_shadcn_ui_visitor::ComponentWrapper,
     nextjs_visitor::NextjsVisitor,
 };
-use etch_tsx::{file::visit_tsx_file_mut, visitor};
 use log::info;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::{collections::HashSet, path::Path};
@@ -91,7 +83,7 @@ impl Project {
 
                     // Construct full path for source file
                     let source_file_path = &file.data.source_file;
-                    let svg = std::fs::read_to_string(&source_file_path)?;
+                    let svg = std::fs::read_to_string(source_file_path)?;
                     info!("Read SVG from source file: {:?}", source_file_path);
 
                     let page = SvgConverter::new(&svg).to_react_component("Page").unwrap();
@@ -102,7 +94,7 @@ impl Project {
                     info!("Relative path: {:?}", relative_path);
 
                     // Construct full path for destination file
-                    let dest_file_path = self.base_dir.join(&relative_path);
+                    let dest_file_path = self.base_dir.join(relative_path);
 
                     // Ensure parent directory exists
                     if let Some(parent) = dest_file_path.parent() {

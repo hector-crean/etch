@@ -2,7 +2,6 @@ use log::info;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::collections::HashSet;
 use strum::{AsRefStr, Display, EnumString};
 use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::*;
@@ -87,27 +86,92 @@ pub struct ShowToastOptions {
     pub message: String,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, AsRefStr, TS, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
 #[ts(export)]
-#[strum(serialize_all = "camelCase")]
-#[serde(tag = "type")]
-pub enum Action {
-    // Toast actions
-    Toast(ShowToastOptions), // Show a toast notification
+pub struct TypeArgument {
+    pub type_expr: TypeExpression,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[ts(export)]
+#[serde(tag = "typeKind", content = "value")]
+pub enum TypeExpression {
+    // Primitive types
+    String,
+    Number,
+    Boolean,
+    Null,
+    Undefined,
+    Any,
+    Void,
+    Never,
+    Unknown,
+
+    // Named type reference (e.g., React.FormEvent, HTMLInputElement)
+    Reference(String),
+
+    // Complex types
+    Array(Box<TypeExpression>),
+    Tuple(Vec<TypeExpression>),
+    Union(Vec<TypeExpression>),
+    Intersection(Vec<TypeExpression>),
+
+    // Object type with properties
+    Object(Vec<ObjectProperty>),
+
+    // Function type
+    Function(FunctionType),
+
+    // Generic type
+    Generic {
+        base: String,
+        args: Vec<TypeArgument>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[ts(export)]
+pub struct ObjectProperty {
+    pub name: String,
+    pub type_expr: TypeExpression,
+    pub optional: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[ts(export)]
+pub struct FunctionType {
+    pub parameters: Vec<FunctionParameter>,
+    pub return_type: Box<TypeExpression>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq, Hash)]
+#[ts(export)]
+pub struct FunctionParameter {
+    pub name: String,
+    pub type_expr: TypeExpression,
+    pub optional: bool,
+    pub rest: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TS, Serialize, Deserialize)]
+#[ts(export)]
+pub struct HandlerFunction {
+    pub name: String,
+    pub parameters: Vec<FunctionParameter>,
+    pub return_type: TypeExpression,
+    pub code: Option<String>, // Optional inline code if supported
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Callback {
     pub trigger: Event,
-    pub action: Action,
+    pub handler: HandlerFunction,
 }
 
 impl Callback {
-    pub fn new(trigger: Event, action: Action) -> Self {
-        Self { trigger, action }
+    pub fn new(trigger: Event, handler: HandlerFunction) -> Self {
+        Self { trigger, handler }
     }
 }
 
@@ -143,14 +207,14 @@ impl InjectCallbacksVisitor {
 impl VisitMut for InjectCallbacksVisitor {
     fn visit_mut_module(&mut self, module: &mut Module) {
         // First collect all used actions
-        let mut used_actions = HashSet::new();
+        // let mut used_actions = HashSet::new();
 
-        // From callbacks
-        for callbacks in self.callbacks.values() {
-            for callback in callbacks {
-                used_actions.insert(callback.action.as_ref().to_string());
-            }
-        }
+        // // From callbacks
+        // for callbacks in self.callbacks.values() {
+        //     for callback in callbacks {
+        //         used_actions.insert(callback.handler.as_ref().to_string());
+        //     }
+        // }
 
         // From component wrappers
 
@@ -216,35 +280,41 @@ impl VisitMut for InjectCallbacksVisitor {
 fn create_event_handler(callback: &Callback, id: String) -> Expr {
     let mut stmts = Vec::new();
 
-    let func_name = callback.action.as_ref().to_string();
-
-    match &callback.action {
-        Action::Toast(props) => {
-            // Call toast with just the message string instead of a full object
-            stmts.push(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Call(CallExpr {
-                    ctxt: SyntaxContext::empty(),
+    // Generate a function call based on the handler signature
+    let args: Vec<ExprOrSpread> = callback
+        .handler
+        .parameters
+        .iter()
+        .map(|param| {
+            // You might need additional logic to handle rest parameters
+            // and optional parameters differently
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Ident(Ident {
                     span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "toast".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            span: DUMMY_SP,
-                            value: props.message.clone().into(),
-                            raw: None,
-                        }))),
-                    }],
-                    type_args: None,
+                    sym: param.name.clone().into(),
+                    optional: false,
+                    ctxt: SyntaxContext::empty(),
                 })),
-            }));
-        }
-    }
+            }
+        })
+        .collect();
+
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(Expr::Call(CallExpr {
+            ctxt: SyntaxContext::empty(),
+            span: DUMMY_SP,
+            callee: Callee::Expr(Box::new(Expr::Ident(Ident {
+                span: DUMMY_SP,
+                sym: callback.handler.name.clone().into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }))),
+            args,
+            type_args: None,
+        })),
+    }));
 
     // Return the constructed arrow function
     Expr::Arrow(ArrowExpr {

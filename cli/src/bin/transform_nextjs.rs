@@ -7,7 +7,8 @@ use std::collections::HashSet;
 const ROOT_DIR: &str = r#"/Users/hectorcrean/typescript/RVM-2429613-Clinical-Trial-Website/src"#;
 
 fn get_color_name(hex: &str) -> &str {
-    let name = match hex.to_lowercase().as_str() {
+    
+    (match hex.to_lowercase().as_str() {
         "[#3a9b54]" => "forest-green",
         "[#13d377]" => "emerald-green",
         "[#333333]" => "charcoal",
@@ -15,8 +16,7 @@ fn get_color_name(hex: &str) -> &str {
         "[#0e4343]" => "dark-pine",
         "[#70ffe5" => "aqua-mint",
         _ => hex,
-    };
-    name
+    }) as _
 }
 
 fn main() {
