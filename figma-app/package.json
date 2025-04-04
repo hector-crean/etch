@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "export-file-tree": "npx tsx scripts/export-file-tree.ts",
+    "sync_svgs": "npm run export-file-tree && cargo run --bin svg_react"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -18,6 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.486.0",
+    "motion": "^12.6.3",
     "next": "15.2.4",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",

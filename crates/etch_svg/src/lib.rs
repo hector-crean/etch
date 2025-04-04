@@ -15,7 +15,7 @@ impl SvgConverter {
     // Create a React component from the SVG content
     pub fn to_react_component(&self, component_name: &str) -> Result<String, Box<dyn Error>> {
         // Use svgr_rs transform to convert SVG to React component
-        let config = Config { typescript: true, ..Default::default()};
+        let config = Config { typescript: true, dimensions: false, ..Default::default()};
         let state = State { component_name: Some(component_name.to_string()), ..Default::default()};
         let jsx = transform(self.content.clone(), config, state)?;
         

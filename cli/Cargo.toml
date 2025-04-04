@@ -1,4 +1,4 @@
-cargo-features = ["edition2024"]
+
 
 [package]
 name = "cli"
@@ -9,6 +9,7 @@ license.workspace = true
 
 [dependencies]
 etch_core = { workspace = true }
+etch_nextjs = { workspace = true }
 etch_html = { workspace = true }
 etch_svg = {  workspace = true }
 etch_tsx = { workspace = true }

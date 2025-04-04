@@ -1,175 +1,136 @@
 use dotenv::dotenv;
 use etch_core::walk::FileWalker;
+use etch_nextjs::*;
 use etch_svg::SvgConverter;
 use etch_tsx::visitor::svg_react_visitor::{
     Action, Callback, CloseDropdownOptions, CloseModalOptions, CloseSheetOptions, ComponentWrapper,
-    DialogOptions, DrawerOptions, Event, HoverCardOptions, LinkOptions, OpenDropdownOptions,
-    OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions, SheetOptions,
-    ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
+    DialogOptions, DrawerOptions, Event, FigmaExportVisitor, HoverCardOptions, LinkOptions,
+    OpenDropdownOptions, OpenModalOptions, OpenSheetOptions, PopoverOptions, SelectTabOptions,
+    SheetOptions, ShowToastOptions, ToggleAccordionOptions, ToggleModalOptions, TooltipOptions,
 };
 use etch_tsx::{file::visit_tsx_file_mut, visitor};
 use log::info;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
 use std::{collections::HashSet, path::Path};
 
-const SVG_RELATIVE_DIR: &str = r#"figma-app/figma-export"#;
-const TSX_RELATIVE_DIR: &str = r#"figma-app/src/app"#;
 
-fn main() {
+#[derive(thiserror::Error, Debug)]
+pub enum FigmaConversionError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    ParseError(#[from] serde_json::Error),
+    #[error(transparent)]
+    AppRouterError(#[from] etch_nextjs::AppRouterError),
+    #[error(transparent)]
+    TsxError(#[from] etch_tsx::file::TsxError),
+}
+
+pub struct Project {
+    base_dir: PathBuf,
+    file_tree: Vec<AppRouterEntry<FigmaExportVisitor>>,
+}
+
+impl Project {
+    pub fn new(base_dir: PathBuf) -> Self {
+        Self { base_dir, file_tree: vec![] }
+    }
+    pub fn from_file<D: AsRef<Path>, P: AsRef<Path>>(base_dir: D, path: P) -> Result<Self, FigmaConversionError> {
+        let file_content = std::fs::read_to_string(path)?;
+        let file_tree: Vec<AppRouterEntry<FigmaExportVisitor>> =
+            serde_json::from_str(&file_content)?;
+
+        Ok(Self { base_dir: base_dir.as_ref().to_path_buf(), file_tree })
+    }
+    pub fn run(&self) -> Result<(), FigmaConversionError> {
+        self.process_entries(&self.file_tree)
+    }
+    
+    fn process_entries(&self, entries: &[AppRouterEntry<FigmaExportVisitor>]) -> Result<(), FigmaConversionError> {
+        for entry in entries.iter() {
+            match entry {
+                AppRouterEntry::Directory(dir) => {
+                    // Recursively process children of this directory
+                    info!("Processing directory: {:?}", dir.relative_path);
+                    self.process_entries(&dir.children)?;
+                }
+                AppRouterEntry::File(file) => {
+                    info!("Processing file: {:?}", file.relative_path);
+
+                    // Construct full path for source file
+                    let source_file_path = &file.data.source_file;
+                    let svg = std::fs::read_to_string(&source_file_path)?;
+                    info!("Read SVG from source file: {:?}", source_file_path);
+                    
+                    let page = SvgConverter::new(&svg).to_react_component("Page").unwrap();
+                    info!("Converting SVG to React component");
+                    
+                    // Construct full path for destination file
+                    let dest_file_path = self.base_dir.join(&file.relative_path);
+                    
+                    // Ensure parent directory exists
+                    if let Some(parent) = dest_file_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    
+                    info!("Writing React component to: {:?}", dest_file_path);
+                    std::fs::write(&dest_file_path, page)?;
+                    
+                    let mut visitor = FigmaExportVisitor::new(dest_file_path.clone());
+
+                    // Log component wrappers and callbacks registration
+                    info!("Registering {} component wrappers", file.data.component_wrappers.len());
+                    for (id, wrapper) in file.data.component_wrappers.iter() {
+                        visitor.register_component_wrapper(id.clone(), wrapper.clone());
+                    }
+
+                    info!("Registering callbacks for {} elements", file.data.callbacks.len());
+                    for (id, callbacks) in file.data.callbacks.iter() {
+                        for callback in callbacks.iter() {
+                            visitor.register_callback(id.clone(), callback.clone());
+                        }
+                    }
+                    
+                    info!("Applying TSX visitor to file: {:?}", dest_file_path);
+                    let (mut tsx, visitor) = visit_tsx_file_mut(dest_file_path.clone(), visitor)?;
+
+                    // Add "use client"; directive and import Button component
+                    tsx = format!(
+                        "\"use client\";\n\nimport {{ Button }} from \"@/components/ui/button\";\n\n{}",
+                        tsx
+                    );
+            
+                    info!("Writing final TSX to: {:?}", dest_file_path);
+                    std::fs::write(&dest_file_path, tsx)?;
+            
+                    // Format the TSX file using Prettier
+                    format_tsx_file(&dest_file_path)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn main() -> Result<(), FigmaConversionError> {
     dotenv().ok();
     env_logger::init();
 
-    // Get workspace root directory
-    let workspace_dir = get_workspace_root().unwrap_or_else(|| PathBuf::from("."));
+    let base_dir = "/Users/hectorcrean/rust/etch/figma-app/src/app/(pages)";
 
-    // Create absolute paths from the relative ones
-    let svg_root_dir = workspace_dir.join(SVG_RELATIVE_DIR);
-    let tsx_root_dir = workspace_dir.join(TSX_RELATIVE_DIR);
+    let file_tree_path = "/Users/hectorcrean/rust/etch/figma-app/src/file-tree.json";
+    info!("Loading project from file: {}", file_tree_path);
+    
+    let project = Project::from_file(&base_dir, file_tree_path)?;
+    info!("Project loaded with {} entries", project.file_tree.len());
+    
+    info!("Starting project conversion...");
+    project.run()?;
+    info!("Project conversion completed successfully");
 
-    info!("SVG source directory: {}", svg_root_dir.display());
-    info!("TSX output directory: {}", tsx_root_dir.display());
-
-    let walker = FileWalker::new(["svg"]);
-
-    let _ = walker.visit(svg_root_dir, |path, relative_path| {
-        let svg = std::fs::read_to_string(path)?;
-
-        let converter = SvgConverter::new(&svg);
-        let page = converter.to_react_component("Page").unwrap();
-
-        let file_stem = relative_path.file_stem().unwrap_or_default();
-
-        let new_relative_path = relative_path
-            .parent()
-            .unwrap()
-            .join(format!("{}", file_stem.to_string_lossy()));
-
-        let new_path = tsx_root_dir.join(new_relative_path).join("page.tsx");
-
-        // Create parent directories if they don't exist
-        if let Some(parent) = new_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        std::fs::write(new_path.clone(), page)?;
-
-        let mut visitor = visitor::svg_react_visitor::FigmaExportVisitor::new();
-
-        // 1. Modal Actions
-        visitor.register_component_wrapper(
-            "modal-button".to_string(),
-            ComponentWrapper::Dialog(DialogOptions {
-                id: "modal-1".to_string(),
-                title: Some("Modal Title".to_string()),
-                description: Some("Modal Description".to_string()),
-                content: Some("Modal Content".to_string()),
-                has_footer: Some(true),
-                footer_buttons: Some(vec![]),
-            }),
-        );
-
-        visitor.register_component_wrapper(
-            "hover-card-button".to_string(),
-            ComponentWrapper::HoverCard(HoverCardOptions {
-                id: "hover-card-1".to_string(),
-                trigger_id: None,
-                title: Some("Hover Card Title".to_string()),
-                description: Some("Hover Card Description".to_string()),
-                content: Some("Hover Card Content".to_string()),
-                open_delay: Some(100),
-                close_delay: Some(100),
-            }),
-        );
-
-        visitor.register_component_wrapper(
-            "link-button".to_string(),
-            ComponentWrapper::Link(LinkOptions {
-                id: "link-1".to_string(),
-                href: "https://www.google.com".to_string(),
-                target: Some("_blank".to_string()),
-                rel: Some("noopener noreferrer".to_string()),
-                as_button: Some(true),
-                variant: Some("default".to_string()),
-                size: Some("default".to_string()),
-            }),
-        );
-
-        // 2. Sheet/Drawer Actions
-        visitor.register_component_wrapper(
-            "popover-button".to_string(),
-            ComponentWrapper::Popover(PopoverOptions {
-                id: "popover-1".to_string(),
-                trigger_id: None,
-                title: Some("Popover Title".to_string()),
-                description: Some("Popover Description".to_string()),
-                content: Some("Popover Content".to_string()),
-                alignment: Some("bottom".to_string()),
-            }),
-        );
-
-        visitor.register_component_wrapper(
-            "sheet-button".to_string(),
-            ComponentWrapper::Sheet(SheetOptions {
-                id: "sheet-1".to_string(),
-                trigger_id: None,
-                title: Some("Sheet Title".to_string()),
-                description: Some("Sheet Description".to_string()),
-                content: Some("Sheet Content".to_string()),
-                side: Some("left".to_string()),
-                has_footer: Some(true),
-                footer_buttons: Some(vec![]),
-            }),
-        );
-
-        // 3. Toast Notifications
-        visitor.register_callback(
-            "notification-bell".to_string(),
-            Callback {
-                trigger: Event::Click,
-                action: Action::Toast(ShowToastOptions {
-                    message: "New notification".to_string(),
-                }),
-            },
-        );
-
-        visitor.register_component_wrapper(
-            "tooltip-button".to_string(),
-            ComponentWrapper::Tooltip(TooltipOptions {
-                id: "tooltip-1".to_string(),
-                trigger_id: None,
-                content: "Tooltip Content".to_string(),
-                side: Some("bottom".to_string()),
-                align: Some("center".to_string()),
-                delay_duration: Some(100),
-                skip_delay_duration: Some(100),
-            }),
-        );
-
-        visitor.register_component_wrapper(
-            "drawer-button".to_string(),
-            ComponentWrapper::Drawer(DrawerOptions {
-                id: "dropdown-trigger".to_string(),
-                title: Some("Drawer Title".to_string()),
-                description: Some("Drawer Description".to_string()),
-            }),
-        );
-
-        let (mut tsx, visitor) = visit_tsx_file_mut(new_path.clone(), visitor)?;
-
-        // Add "use client"; directive and import Button component
-        tsx = format!(
-            "\"use client\";\n\nimport {{ Button }} from \"@/components/ui/button\";\n\n{}",
-            tsx
-        );
-
-        std::fs::write(new_path.clone(), tsx)?;
-
-        // Format the TSX file using Prettier
-        format_tsx_file(&new_path)?;
-
-        Ok(())
-    });
+    Ok(())
 }
 
 /// Format a TypeScript/TSX file using Prettier
@@ -188,25 +149,4 @@ fn format_tsx_file(path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Get the workspace root directory by looking for Cargo.toml
-fn get_workspace_root() -> Option<PathBuf> {
-    let mut current_dir = std::env::current_dir().ok()?;
 
-    loop {
-        let cargo_toml = current_dir.join("Cargo.toml");
-        if cargo_toml.exists() {
-            // Check if this is a workspace Cargo.toml
-            let content = std::fs::read_to_string(&cargo_toml).ok()?;
-            if content.contains("[workspace]") {
-                return Some(current_dir);
-            }
-        }
-
-        // Go up one directory
-        if !current_dir.pop() {
-            break;
-        }
-    }
-
-    None
-}

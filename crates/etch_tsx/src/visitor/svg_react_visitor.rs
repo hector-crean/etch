@@ -6,6 +6,8 @@ use serde_json::{Value as JsonValue, json};
 use swc_atoms::Atom;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 use strum::{AsRefStr, Display, EnumString};
 use swc_common::{DUMMY_SP, Span, SyntaxContext};
 use swc_ecma_ast::*;
@@ -13,7 +15,7 @@ use swc_ecma_visit::{VisitMut, VisitMutWith};
 use swc_atoms::atom;
 use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, AsRefStr, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, AsRefStr, TS, Serialize, Deserialize)]
 #[ts(export)]
 #[strum(serialize_all = "camelCase")]
 pub enum Event {
@@ -84,66 +86,78 @@ impl Event {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct OpenModalOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct CloseModalOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct ToggleModalOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct OpenSheetOptions {
     pub id: String,
     pub side: Option<String>, // "top", "right", "bottom", "left"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct CloseSheetOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct ShowToastOptions {
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct SelectTabOptions {
     pub tabGroupId: String,
     pub tabId: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct ToggleAccordionOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct OpenDropdownOptions {
     pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct CloseDropdownOptions {
     pub id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, AsRefStr, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Display, EnumString, AsRefStr, TS, Serialize, Deserialize)]
 #[ts(export)]
 #[strum(serialize_all = "camelCase")]
+#[serde(tag = "type")]
 pub enum Action {
     // Toast actions
     Toast(ShowToastOptions), // Show a toast notification
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct Callback {
     pub trigger: Event,
     pub action: Action,
@@ -155,13 +169,16 @@ impl Callback {
     }
 }
 
-// Replace CustomEvent with this
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct ElementCallbacks {
     pub element_id: String,
     pub callbacks: Vec<Callback>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "type")]
 pub enum ComponentWrapper {
     Dialog(DialogOptions),
     HoverCard(HoverCardOptions),
@@ -173,20 +190,25 @@ pub enum ComponentWrapper {
 }
 
 /// A visitor that adds event handlers to JSX elements and transforms JSX structure
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(export)]
 pub struct FigmaExportVisitor {
-    callbacks: HashMap<String, Vec<Callback>>,
-    component_wrappers: HashMap<String, ComponentWrapper>, // Generic wrapper mapping
-    action_imports: HashMap<String, HashSet<String>>, // Maps import paths to action names
+    pub source_file: PathBuf,
+    pub callbacks: HashMap<String, Vec<Callback>>,
+    pub component_wrappers: HashMap<String, ComponentWrapper>, // Generic wrapper mapping
+    pub action_imports: HashMap<String, HashSet<String>>, // Maps import paths to action names
 }
 
 impl FigmaExportVisitor {
-    pub fn new() -> Self {
+    pub fn new<P: AsRef<Path>>(source_file: P) -> Self {
         Self {
+            source_file: source_file.as_ref().to_path_buf(),
             callbacks: HashMap::new(),
             component_wrappers: HashMap::new(), // Initialize the generic wrapper field
             action_imports: HashMap::new(),
         }
     }
+
 
     /// Register a callback function for a specific element ID
     pub fn register_callback(&mut self, id: String, callback: Callback) {
@@ -1229,6 +1251,7 @@ fn convert_to_pascal_case(s: &str) -> String {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct DialogButton {
     pub label: String,
     pub variant: Option<String>, // "default", "destructive", "outline", etc.
@@ -1236,6 +1259,7 @@ pub struct DialogButton {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct DialogOptions {
     pub id: String,
     pub title: Option<String>,
@@ -1249,6 +1273,7 @@ pub struct DialogOptions {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct HoverCardOptions {
     pub id: String,
     pub trigger_id: Option<String>,
@@ -1260,6 +1285,7 @@ pub struct HoverCardOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct PopoverOptions {
     pub id: String,
     pub trigger_id: Option<String>,
@@ -1270,6 +1296,7 @@ pub struct PopoverOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct SheetOptions {
     pub id: String,
     pub trigger_id: Option<String>,
@@ -1282,6 +1309,7 @@ pub struct SheetOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct SheetButton {
     pub label: String,
     pub variant: Option<String>, // "default", "destructive", "outline", etc.
@@ -1289,6 +1317,7 @@ pub struct SheetButton {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct SonnerOptions {
     pub id: String,
     pub position: Option<String>, // "top-left", "top-right", "bottom-left", "bottom-right"
@@ -1299,6 +1328,7 @@ pub struct SonnerOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct ToastOptions {
     pub id: String,
     pub title: Option<String>,
@@ -1310,6 +1340,7 @@ pub struct ToastOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct TooltipOptions {
     pub id: String,
     pub trigger_id: Option<String>,
@@ -1321,6 +1352,7 @@ pub struct TooltipOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct LinkOptions {
     pub id: String,
     pub href: String,
@@ -1332,6 +1364,7 @@ pub struct LinkOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
+#[ts(export)]
 pub struct DrawerOptions {
     pub id: String,
     pub title: Option<String>,

@@ -141,29 +141,30 @@ impl TryFrom<&str> for AppRouterFileKind {
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct Directory {
+pub struct Directory<T> {
     #[serde(flatten)]
-    directory_kind: AppRouterDirectoryKind,
-    path_segment: String,
-    relative_path: String,
-    children: Vec<AppRouterEntry>,
+    pub directory_kind: AppRouterDirectoryKind,
+    pub path_segment: String,
+    pub relative_path: String,
+    pub children: Vec<AppRouterEntry<T>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct File {
+pub struct File<T> {
     #[serde(flatten)]
-    file_kind: AppRouterFileKind,
-    path_segment: String,
-    relative_path: String,
+    pub file_kind: AppRouterFileKind,
+    pub path_segment: String,
+    pub relative_path: String,
+    pub data: T,
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type")]
 #[ts(export)]
-pub enum AppRouterEntry {
-    Directory(Directory),
-    File(File),
+pub enum AppRouterEntry<T> {
+    Directory(Directory<T>),
+    File(File<T>),
 }
 
 impl Cli {
@@ -171,49 +172,10 @@ impl Cli {
         Self
     }
 
-    pub fn get_directory_structure(
+    pub fn get_directory_structure<T:Default>(
         dir: &Path,
         base_dir: &Path,
-    ) -> Result<Vec<AppRouterEntry>, AppRouterError> {
-        fn build_tree(path: &Path, base_dir: &Path) -> Result<AppRouterEntry, AppRouterError> {
-            let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
-            let path_segment = path.file_name().unwrap().to_string_lossy().into_owned();
-
-            if path.is_dir() {
-                let directory_kind = AppRouterDirectoryKind::try_from(
-                    path.file_stem().unwrap().to_string_lossy().as_ref(),
-                )?;
-                let mut children = Vec::new();
-
-                for entry in WalkDir::new(path)
-                    .max_depth(1)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                    .filter(|e| e.path() != path)
-                // Skip the current directory itself
-                {
-                    let child_entry = build_tree(entry.path(), base_dir)?;
-                    children.push(child_entry);
-                }
-
-                Ok(AppRouterEntry::Directory(Directory {
-                    directory_kind,
-                    path_segment,
-                    relative_path: relative_path.to_string_lossy().into_owned(),
-                    children,
-                }))
-            } else {
-                let file_kind = AppRouterFileKind::try_from(
-                    path.file_stem().unwrap().to_string_lossy().as_ref(),
-                )?;
-                Ok(AppRouterEntry::File(File {
-                    file_kind,
-                    path_segment,
-                    relative_path: relative_path.to_string_lossy().into_owned(),
-                }))
-            }
-        }
-
+    ) -> Result<Vec<AppRouterEntry<T>>, AppRouterError> {
         let mut app_router_entries = Vec::new();
 
         for entry in WalkDir::new(dir)
@@ -221,12 +183,51 @@ impl Cli {
             .into_iter()
             .filter_map(Result::ok)
             .filter(|entry| entry.path() != dir)
-        // Skip the root directory itself
         {
-            let app_router_entry = build_tree(entry.path(), base_dir)?;
+            let app_router_entry = build_tree::<T>(entry.path(), base_dir)?;
             app_router_entries.push(app_router_entry);
         }
 
         Ok(app_router_entries)
+    }
+}
+
+fn build_tree<T: Default>(path: &Path, base_dir: &Path) -> Result<AppRouterEntry<T>, AppRouterError> {
+    let relative_path = path.strip_prefix(base_dir).unwrap_or(&path);
+    let path_segment = path.file_name().unwrap().to_string_lossy().into_owned();
+
+    if path.is_dir() {
+        let directory_kind = AppRouterDirectoryKind::try_from(
+            path.file_stem().unwrap().to_string_lossy().as_ref(),
+        )?;
+        let mut children = Vec::new();
+
+        for entry in WalkDir::new(path)
+            .max_depth(1)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path() != path)
+        // Skip the current directory itself
+        {
+            let child_entry = build_tree(entry.path(), base_dir)?;
+            children.push(child_entry);
+        }
+
+        Ok(AppRouterEntry::Directory(Directory {
+            directory_kind,
+            path_segment,
+            relative_path: relative_path.to_string_lossy().into_owned(),
+            children,
+        }))
+    } else {
+        let file_kind = AppRouterFileKind::try_from(
+            path.file_stem().unwrap().to_string_lossy().as_ref(),
+        )?;
+        Ok(AppRouterEntry::File(File {
+            file_kind,
+            path_segment,
+            relative_path: relative_path.to_string_lossy().into_owned(),
+            data: T::default(),
+        }))
     }
 }

@@ -1,0 +1,143 @@
+import { AppRouterEntry } from '../../crates/etch_nextjs/bindings/AppRouterEntry';
+import { FigmaExportVisitor } from '../../crates/etch_tsx/bindings/FigmaExportVisitor';
+
+const fileTree: AppRouterEntry<FigmaExportVisitor>[] = [
+  {
+    type: 'Directory',
+    path_segment: 'slides',
+    relative_path: 'slides',
+    directory_kind: 'StaticRoute',
+    children: [
+      {
+        type: 'File',
+        file_kind: 'Page',
+        path_segment: 'page.tsx',
+        relative_path: 'slides/page.tsx',
+        data: {
+          source_file: '/Users/hectorcrean/rust/etch/figma-app/figma/slide-1a.svg',
+          callbacks: {
+            'close-button': [
+              {
+                action: {
+                  type: 'Toast',
+                  message: 'Hello, world!',
+                },
+                trigger: 'Click',
+              },
+            ],
+          },
+          component_wrappers: {
+            'dialog-button': {
+              type: 'Dialog',
+              id: 'modal-1',
+              title: 'Modal Title',
+              description: 'Modal Description',
+              content: 'Modal Content',
+              has_footer: true,
+              footer_buttons: [],
+            },
+            'hover-card-button-1': {
+              type: 'HoverCard',
+              id: 'hover-card-1',
+              trigger_id: 'hover-card-trigger',
+              title: 'Hover Card Title',
+              description: 'Hover Card Description',
+              content: 'Hover Card Content',
+              open_delay: 100,
+              close_delay: 100,
+            },
+            'hover-card-button-2': {
+              type: 'HoverCard',
+              id: 'hover-card-1',
+              trigger_id: 'hover-card-trigger',
+              title: 'Hover Card Title',
+              description: 'Hover Card Description',
+              content: 'Hover Card Content',
+              open_delay: 100,
+              close_delay: 100,
+            },
+            'hover-card-button-3': {
+              type: 'HoverCard',
+              id: 'hover-card-1',
+              trigger_id: 'hover-card-trigger',
+              title: 'Hover Card Title',
+              description: 'Hover Card Description',
+              content: 'Hover Card Content',
+              open_delay: 100,
+              close_delay: 100,
+            },
+            'hover-card-button-4': {
+              type: 'HoverCard',
+              id: 'hover-card-1',
+              trigger_id: 'hover-card-trigger',
+              title: 'Hover Card Title',
+              description: 'Hover Card Description',
+              content: 'Hover Card Content',
+              open_delay: 100,
+              close_delay: 100,
+            },
+            'hover-card-button-5': {
+              type: 'HoverCard',
+              id: 'hover-card-1',
+              trigger_id: 'hover-card-trigger',
+              title: 'Hover Card Title',
+              description: 'Hover Card Description',
+              content: 'Hover Card Content',
+              open_delay: 100,
+              close_delay: 100,
+            },
+            'link-button': {
+              type: 'Link',
+              id: 'link-1',
+              href: 'https://www.google.com',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              as_button: true,
+              variant: 'default',
+              size: 'default',
+            },
+            'popover-button-1': {
+              type: 'Popover',
+              id: 'popover-1',
+              trigger_id: 'popover-trigger',
+              title: 'Popover Title',
+              description: 'Popover Description',
+              content: 'Popover Content',
+              alignment: 'bottom',
+            },
+            'sheet-button': {
+              type: 'Sheet',
+              id: 'sheet-1',
+              trigger_id: 'sheet-trigger',
+              title: 'Sheet Title',
+              description: 'Sheet Description',
+              content: 'Sheet Content',
+              side: 'left',
+              has_footer: true,
+              footer_buttons: [],
+            },
+            'tooltip-button': {
+              type: 'Tooltip',
+              id: 'tooltip-1',
+              trigger_id: 'tooltip-trigger',
+              content: 'Tooltip Content',
+              side: 'bottom',
+              align: 'center',
+              delay_duration: 100,
+              skip_delay_duration: 100,
+            },
+            'drawer-button': {
+              type: 'Drawer',
+              id: 'dropdown-trigger',
+              title: 'Drawer Title',
+              description: 'Drawer Description',
+            },
+          },
+          action_imports: {},
+        },
+      },
+    ],
+  },
+];
+
+export default fileTree;
