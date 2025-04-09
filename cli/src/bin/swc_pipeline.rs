@@ -7,9 +7,11 @@ fn main() -> Result<(), FigmaConversionError> {
     dotenv().ok();
     env_logger::init();
 
-    let base_dir = r#"C:\Users\Hector.C\rust\etch\figma-app\src\app\(pages)"#;
+    // let base_dir = r#"C:\Users\Hector.C\rust\etch\figma-app\src\app\(pages)"#;
+    let base_dir = r#"/Users/hectorcrean/rust/etch/figma-app/src/app/(pages)"#;
 
-    let file_tree_path = r#"C:\Users\Hector.C\rust\etch\figma-app\src\file-tree.json"#;
+    let file_tree_path = r#"/Users/hectorcrean/rust/etch/figma-app/src/app.config.json"#;
+    
     info!("Loading project from file: {}", file_tree_path);
 
     let project = Project::from_file(base_dir, file_tree_path)?;

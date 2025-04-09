@@ -4,6 +4,7 @@ use etch_tsx::pipeline::Pipeline;
 use etch_tsx::visitor::framer_motion_visitor::{AnimationConfig, FramerMotionVisitor};
 use etch_tsx::visitor::inject_callbacks_visitor::Callback;
 use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
+use etch_tsx::visitor::inject_uuid_visitor::{InjectUuidPolicy, InjectUuidVisitor};
 use etch_tsx::visitor::nextjs_visitor::Runtime;
 use etch_tsx::visitor::{
     inject_callbacks_visitor::InjectCallbacksVisitor,
@@ -113,6 +114,7 @@ impl Project {
                             file.data.action_imports.clone(),
                         ))
                         .add_visitor(FramerMotionVisitor::new(file.data.animations.clone()))
+                        .add_visitor(InjectUuidVisitor::new(InjectUuidPolicy::KeepExisting))
                         .add_visitor(NextjsVisitor::new(Runtime::Client));
 
                     let tsx = pipeline.run(dest_file_path.clone())?;
