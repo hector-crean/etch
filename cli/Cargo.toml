@@ -28,3 +28,5 @@ palette = "0.7.6"
 serde = { workspace = true }
 serde_json = { workspace = true }
 ts-rs = { workspace = true }
+ratatui = "0.25.0"
+crossterm = "0.27.0"

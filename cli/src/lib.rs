@@ -1,8 +1,16 @@
+pub mod core;
 pub mod figma_conversion;
 
 use clap::{Parser, Subcommand};
 use etch_html::visitor::svg_extractor_visitor::SvgImportType;
+use figma_conversion::FigmaConversionError;
 use std::path::PathBuf;
+
+#[derive(thiserror::Error, Debug)]
+pub enum EtchCliError {
+    #[error(transparent)]
+    FigmaConversionError(#[from] FigmaConversionError),
+}
 
 /// Command-line interface configuration structure
 ///
@@ -31,65 +39,32 @@ pub struct Cli {
 /// including HTML processing, TSX handling, and Markdown operations.
 #[derive(Subcommand)]
 pub enum Commands {
-    /// HTML processing commands
+    ///  Processing commands
     ///
-    /// Contains subcommands specific to HTML file processing
-    Html {
+    /// Contains subcommands specific to Figma file processing
+    Figma {
         #[command(subcommand)]
-        cmd: HtmlCommands,
-    },
-    /// TSX file processing commands
-    Tsx {
-        /// When true, lists available test values
-        #[arg(short, long)]
-        list: bool,
-    },
-    /// Markdown file processing commands
-    Md {
-        /// When true, lists available test values
-        #[arg(short, long)]
-        list: bool,
+        cmd: FigmaCommands,
     },
 }
 
-/// HTML-specific commands and operations
+/// Figma-specific commands and operations
 ///
-/// This enum contains all commands related to HTML processing,
-/// including SVG extraction and other HTML-related operations.
+/// This enum contains all commands related to Figma processing,
+/// including extracting React components from Figma.
+///
+
 #[derive(Subcommand)]
-pub enum HtmlCommands {
-    /// Extracts SVG elements from HTML files
-    ExtractSvgs {
-        /// The root directory containing HTML files to process
+pub enum FigmaCommands {
+    GenerateNextjsPages {
+        /// The pages directory
         ///
-        /// This directory will be searched for HTML files containing SVGs
         #[arg(short, long)]
-        root_dir: PathBuf,
+        pages_dir: PathBuf,
 
-        /// The root directory where extracted SVGs will be saved
+        /// The app config path
         ///
-        /// All processed SVG files will be written to this location
-        /// We shall often just set this to the same as the root_dir
         #[arg(short, long)]
-        output_dir: PathBuf,
-
-        /// Specifies how SVGs should be imported
-        ///
-        /// Determines the format and method used for SVG imports
-        #[arg(short, long)]
-        svg_import_type: SvgImportType,
-
-        /// Controls output directory structure
-        ///
-        /// When true, maintains the same directory structure as the input
-        /// When false, places all SVGs directly in the output directory
-        #[arg(short, long)]
-        preserve_structure: bool,
-
-        /// Optional asset directory path
-        ///
-        /// Specifies an additional directory path to append
-        #[arg(short, long)]
-        asset_dir: Option<PathBuf>,
+        app_config_path: PathBuf,
     },
 }

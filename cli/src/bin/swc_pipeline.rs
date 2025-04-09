@@ -8,34 +8,19 @@ fn main() -> Result<(), FigmaConversionError> {
     env_logger::init();
 
     // let base_dir = r#"C:\Users\Hector.C\rust\etch\figma-app\src\app\(pages)"#;
-    let base_dir = r#"/Users/hectorcrean/rust/etch/figma-app/src/app/(pages)"#;
+    let pages_dir = r#"/Users/hectorcrean/rust/etch/figma-app/src/app/(pages)"#;
 
-    let file_tree_path = r#"/Users/hectorcrean/rust/etch/figma-app/src/app.config.json"#;
-    
-    info!("Loading project from file: {}", file_tree_path);
+    let app_config_path = r#"/Users/hectorcrean/rust/etch/figma-app/src/app.config.json"#;
 
-    let project = Project::from_file(base_dir, file_tree_path)?;
+    info!("Loading project from file: {}", app_config_path);
+
+    let project = Project::from_file(pages_dir, app_config_path)?;
+
     info!("Project loaded with {} entries", project.file_tree.len());
 
     info!("Starting project conversion...");
     project.run()?;
     info!("Project conversion completed successfully");
-
-    Ok(())
-}
-
-/// Format a TypeScript/TSX file using Prettier
-fn format_tsx_file(path: &Path) -> std::io::Result<()> {
-    use std::process::Command;
-
-    let output = Command::new("npx")
-        .args(["prettier", "--write", path.to_str().unwrap()])
-        .output()?;
-
-    if !output.status.success() {
-        let error = String::from_utf8_lossy(&output.stderr);
-        eprintln!("Error formatting TSX file: {}", error);
-    }
 
     Ok(())
 }

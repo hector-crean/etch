@@ -7,8 +7,7 @@ use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
 use etch_tsx::visitor::inject_uuid_visitor::{InjectUuidPolicy, InjectUuidVisitor};
 use etch_tsx::visitor::nextjs_visitor::Runtime;
 use etch_tsx::visitor::{
-    inject_callbacks_visitor::InjectCallbacksVisitor,
-    inject_shadcn_ui_visitor::ComponentWrapper,
+    inject_callbacks_visitor::InjectCallbacksVisitor, inject_shadcn_ui_visitor::ComponentWrapper,
     nextjs_visitor::NextjsVisitor,
 };
 use log::info;
