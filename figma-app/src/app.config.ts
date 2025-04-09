@@ -1,5 +1,5 @@
-import { FigmaConversion } from '../../cli/bindings/FigmaConversion';
-import { AppRouterEntry } from '../../crates/etch_nextjs/bindings/AppRouterEntry';
+import { AppRouterEntry } from '@/types/AppRouterEntry';
+import { FigmaConversion } from '@/types/FigmaConversion';
 
 const fileTree: AppRouterEntry<FigmaConversion>[] = [
   {
