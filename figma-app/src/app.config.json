@@ -9,33 +9,35 @@
         "type": "File",
         "file_kind": "Page",
         "path_segment": "page.tsx",
-        "relative_path": "slides\\page.tsx",
+        "relative_path": "slides/page.tsx",
         "data": {
-          "source_file": "C:\\Users\\Hector.C\\rust\\etch\\figma-app\\figma\\slide-1a.svg",
+          "source_file": "/Users/hectorcrean/rust/etch/figma-app/figma/slide-1a.svg",
           "animations": {
             "Vector_3": {
-              "element_id": "OSA DISEASE BURDEN",
-              "animation_type": "PathDrawing",
-              "custom_delay": 0.5,
-              "stroke_color": "#ff0088",
+              "initial": {
+                "opacity": 0
+              },
+              "animate": {
+                "opacity": 1
+              },
+              "exit": {
+                "opacity": 0
+              },
+              "variants": {
+                "hidden": {
+                  "opacity": 0
+                },
+                "visible": {
+                  "opacity": 1
+                }
+              },
+              "transition": {
+                "duration": 0.5
+              },
               "inherit_children": true
             }
           },
-          "callbacks": {
-            "dialog-button": [
-              {
-                "handler": {
-                  "name": "closeButton",
-                  "parameters": [],
-                  "return_type": {
-                    "typeKind": "Void"
-                  },
-                  "code": "console.log(\"closeButton\")"
-                },
-                "trigger": "Click"
-              }
-            ]
-          },
+          "callbacks": {},
           "component_wrappers": {
             "dialog-button": {
               "type": "Dialog",

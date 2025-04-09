@@ -9,7 +9,7 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "export-file-tree": "npx tsx scripts/export-file-tree.ts",
-    "sync_svgs": "npm run export-file-tree && cargo run --bin svg_react"
+    "pipeline": "npm run export-file-tree && cargo run --bin swc_pipeline"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

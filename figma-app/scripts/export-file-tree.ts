@@ -1,4 +1,4 @@
-import fileTree from '../src/file-tree';
+import fileTree from '../src/app.config';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,6 +6,6 @@ import path from 'path';
 const fileTreeJson = JSON.stringify(fileTree, null, 2);
 
 // Write to file-tree.json
-fs.writeFileSync(path.join(__dirname, '../src/file-tree.json'), fileTreeJson);
+fs.writeFileSync(path.join(__dirname, '../src/app.config.json'), fileTreeJson);
 
-console.log('File tree exported to file-tree.json successfully!');
+console.log('app.config exported to app.config.json successfully!');
