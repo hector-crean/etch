@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -545,35 +544,7 @@ fn create_dialog_component(trigger_element: JSXElement, options: &DialogOptions)
 
         // Add DialogTitle if provided
         if let Some(title) = &options.title {
-            header_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DialogTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: title.clone().into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DialogTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            })));
+            header_children.push(JSXElementChild::JSXElement(Box::new(dangerous_html_node(title.clone()))));
         }
 
         // Add DialogDescription if provided
@@ -639,68 +610,7 @@ fn create_dialog_component(trigger_element: JSXElement, options: &DialogOptions)
 
     // Add custom content if provided
     if let Some(content) = &options.content {
-        // For simplicity, we'll add it as a div - in a real implementation,
-        // you'd want to parse this as JSX
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "dangerouslySetInnerHTML".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                        span: DUMMY_SP,
-                        expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
-                            span: DUMMY_SP,
-                            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                KeyValueProp {
-                                    key: PropName::Ident(
-                                        Ident {
-                                            span: DUMMY_SP,
-                                            sym: "__html".into(),
-                                            optional: false,
-                                            ctxt: SyntaxContext::empty(),
-                                        }
-                                        .into(),
-                                    ),
-                                    value: Box::new(Expr::Lit(Lit::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: content.clone().into(),
-                                        raw: None,
-                                    }))),
-                                },
-                            )))],
-                        }))),
-                    })),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
+        content_children.push(JSXElementChild::JSXElement(Box::new(dangerous_html_node(content.clone()))));
     }
 
     // Add footer with buttons if specified
@@ -2276,4 +2186,68 @@ fn create_drawer_component(trigger_element: JSXElement, options: &DrawerOptions)
         .push(JSXElementChild::JSXElement(Box::new(content_jsx)));
 
     drawer_jsx
+}
+
+/// Creates a JSX element with dangerouslySetInnerHTML set to the provided content
+pub fn dangerous_html_node(content: String) -> JSXElement {
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "div".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+                span: DUMMY_SP,
+                name: JSXAttrName::Ident(
+                    Ident {
+                        span: DUMMY_SP,
+                        sym: "dangerouslySetInnerHTML".into(),
+                        optional: false,
+                        ctxt: SyntaxContext::empty(),
+                    }
+                    .into(),
+                ),
+                value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                    span: DUMMY_SP,
+                    expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
+                        span: DUMMY_SP,
+                        props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
+                            KeyValueProp {
+                                key: PropName::Ident(
+                                    Ident {
+                                        span: DUMMY_SP,
+                                        sym: "__html".into(),
+                                        optional: false,
+                                        ctxt: SyntaxContext::empty(),
+                                    }
+                                    .into(),
+                                ),
+                                value: Box::new(Expr::Lit(Lit::Str(Str {
+                                    span: DUMMY_SP,
+                                    value: content.clone().into(),
+                                    raw: None,
+                                }))),
+                            },
+                        )))],
+                    }))),
+                })),
+            })],
+            self_closing: false,
+            type_args: None,
+        },
+        children: vec![],
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "div".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+    }
 }

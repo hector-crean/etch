@@ -2,7 +2,6 @@ pub mod core;
 pub mod figma_conversion;
 
 use clap::{Parser, Subcommand};
-use etch_html::visitor::svg_extractor_visitor::SvgImportType;
 use figma_conversion::FigmaConversionError;
 use std::path::PathBuf;
 

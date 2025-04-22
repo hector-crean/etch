@@ -8,4 +8,6 @@ pub enum TsxError {
     IoError(#[from] std::io::Error),
     #[error("FromUtf8Error: {0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("RawHtmlError: {0}")]
+    RawHtmlError(#[from] crate::raw_html::RawHtmlError),
 }

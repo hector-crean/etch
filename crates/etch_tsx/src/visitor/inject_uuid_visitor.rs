@@ -1,8 +1,4 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use swc_atoms::Atom;
-use swc_common::{DUMMY_SP, SyntaxContext};
+use swc_common::DUMMY_SP;
 use swc_ecma_ast::*;
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 use ts_rs::TS;
@@ -33,7 +29,7 @@ impl VisitMut for InjectUuidVisitor {
         let has_uuid = node.opening.attrs.iter().any(|attr| {
             if let JSXAttrOrSpread::JSXAttr(jsx_attr) = attr {
                 if let JSXAttrName::Ident(ident) = &jsx_attr.name {
-                    return ident.sym.to_string() == "data-uuid";
+                    return ident.sym == "data-uuid";
                 }
             }
             false
@@ -63,7 +59,7 @@ impl VisitMut for InjectUuidVisitor {
             node.opening.attrs.retain(|attr| {
                 if let JSXAttrOrSpread::JSXAttr(jsx_attr) = attr {
                     if let JSXAttrName::Ident(ident) = &jsx_attr.name {
-                        return ident.sym.to_string() != "data-uuid";
+                        return ident.sym != "data-uuid";
                     }
                 }
                 true

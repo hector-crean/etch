@@ -7,6 +7,12 @@ pub struct EtchCore {
     // Core application state and functionality
 }
 
+impl Default for EtchCore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EtchCore {
     pub fn new() -> Self {
         Self {}
