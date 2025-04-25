@@ -51,11 +51,12 @@ impl Project {
             file_tree: vec![],
         }
     }
+
     pub fn from_file<D: AsRef<Path>, P: AsRef<Path>>(
         base_dir: D,
         path: P,
     ) -> Result<Self, FigmaConversionError> {
-        let file_content = std::fs::read_to_string(path)?;
+        let file_content = std::fs::read_to_string(&path)?;
         let file_tree: Vec<AppRouterEntry<FigmaConversion>> = serde_json::from_str(&file_content)?;
 
         Ok(Self {
@@ -63,6 +64,18 @@ impl Project {
             file_tree,
         })
     }
+
+    // Helper function to normalize path strings to the current platform's format
+    fn normalize_path_string(path_str: &str) -> String {
+        if cfg!(windows) {
+            // Convert forward slashes to backslashes on Windows
+            path_str.replace('/', "\\")
+        } else {
+            // Keep as is on Unix-like systems
+            path_str.to_string()
+        }
+    }
+
     pub fn run(&self) -> Result<(), FigmaConversionError> {
         self.process_entries(&self.file_tree)
     }
@@ -81,19 +94,39 @@ impl Project {
                 AppRouterEntry::File(file) => {
                     info!("Processing file: {:?}", file.relative_path);
 
-                    // Construct full path for source file
-                    let source_file_path = &file.data.source_file;
-                    let svg = std::fs::read_to_string(source_file_path)?;
-                    info!("Read SVG from source file: {:?}", source_file_path);
+                    // Normalize the source file path string before converting to Path
+                    let normalized_source_path =
+                        Self::normalize_path_string(&file.data.source_file);
+                    let source_file_path = Path::new(&normalized_source_path);
+
+                    info!(
+                        "Attempting to read from source file: {:?}",
+                        source_file_path
+                    );
+                    let svg = match std::fs::read_to_string(source_file_path) {
+                        Ok(content) => content,
+                        Err(e) => {
+                            info!(
+                                "Error reading source file: {:?} - {:?}",
+                                source_file_path, e
+                            );
+                            return Err(FigmaConversionError::IoError(e));
+                        }
+                    };
+                    info!(
+                        "Successfully read SVG from source file: {:?}",
+                        source_file_path
+                    );
 
                     let page = SvgConverter::new(&svg).to_react_component("Page").unwrap();
                     info!("Converting SVG to React component");
 
-                    let relative_path = Path::new(&file.relative_path);
-
+                    // Normalize the relative path string before converting to Path
+                    let normalized_relative_path = Self::normalize_path_string(&file.relative_path);
+                    let relative_path = Path::new(&normalized_relative_path);
                     info!("Relative path: {:?}", relative_path);
 
-                    // Construct full path for destination file
+                    // Construct full path for destination file using platform-agnostic join
                     let dest_file_path = self.base_dir.join(relative_path);
 
                     // Ensure parent directory exists
@@ -120,9 +153,6 @@ impl Project {
 
                     info!("Writing final TSX to: {:?}", dest_file_path);
                     std::fs::write(&dest_file_path, tsx)?;
-
-                    // Format the TSX file using Prettier
-                    // format_tsx_file(&dest_file_path)?;
                 }
             }
         }
