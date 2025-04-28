@@ -5,23 +5,14 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[lib]
-crate-type = ["cdylib"]
-
-[[bin]]
-name = "assets"
-path = "src/bin/assets.rs"
-
-[[bin]]
-name = "deadlinks"
-path = "src/bin/deadlinks.rs"
-
+# [lib]
+# crate-type = ["cdylib"]
 
 
 [dependencies]
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
-napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
-napi-derive = "2.12.2"
+# napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
+# napi-derive = "2.12.2"
 etch_core = { workspace = true }
 etch_nextjs = { workspace = true }
 etch_html = { workspace = true }

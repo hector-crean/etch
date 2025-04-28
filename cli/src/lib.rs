@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 
-#[macro_use]
-extern crate napi_derive;
+// #[macro_use]
+// extern crate napi_derive;
 
 pub mod core;
 pub mod figma_conversion;
@@ -15,18 +15,6 @@ use std::path::PathBuf;
 pub enum EtchCliError {
   #[error(transparent)]
   FigmaConversionError(#[from] FigmaConversionError),
-}
-
-impl From<EtchCliError> for napi::Error {
-  fn from(error: EtchCliError) -> Self {
-    napi::Error::from_reason(error.to_string())
-  }
-}
-
-impl From<FigmaConversionError> for napi::Error {
-  fn from(error: FigmaConversionError) -> Self {
-    napi::Error::from_reason(error.to_string())
-  }
 }
 
 /// Command-line interface configuration structure
@@ -84,32 +72,4 @@ pub enum FigmaCommands {
     #[arg(short, long)]
     app_config_path: PathBuf,
   },
-}
-
-#[napi]
-pub fn cli() -> napi::Result<()> {
-  dotenv::dotenv().ok();
-  env_logger::init();
-
-  info!("Starting CLI");
-
-  let cli = Cli::parse();
-
-  if let Some(Commands::Figma { cmd }) = cli.cmd {
-    match cmd {
-      FigmaCommands::GenerateNextjsPages {
-        pages_dir,
-        app_config_path,
-      } => {
-        let project = Project::from_file(pages_dir, app_config_path)?;
-
-        info!("Project loaded with {} entries", project.file_tree.len());
-        info!("Starting project conversion...");
-        project.run()?;
-        info!("Project conversion completed successfully");
-      }
-    }
-  }
-
-  Ok(())
 }
