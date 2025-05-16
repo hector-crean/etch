@@ -298,11 +298,11 @@ pub struct RcDom {
 
 impl RcDom {
     pub fn from_str(html: &str) -> Self {
-        let dom = parse_document(RcDom::default(), Default::default())
+        
+        parse_document(RcDom::default(), Default::default())
             .from_utf8()
             .read_from(&mut html.as_bytes())
-            .expect("Failed to parse HTML");
-        dom
+            .expect("Failed to parse HTML")
     }
     pub fn from_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         let html_str = std::fs::read_to_string(path)?;
@@ -502,7 +502,7 @@ impl TreeSink for RcDom {
             let previous_parent = child.parent.replace(Some(WeakHandle::from(new_parent)));
             assert!(previous_parent
                 .and_then(|w| w.upgrade())
-                .map_or(false, |p| Rc::ptr_eq(&p.0, &node.0)));
+                .is_some_and(|p| Rc::ptr_eq(&p.0, &node.0)));
         }
         new_children.extend(mem::take(&mut *children));
     }

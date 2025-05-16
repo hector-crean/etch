@@ -1,13 +1,22 @@
 [package]
-name = "cli"
+name = "etch_cli"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
+# [lib]
+# crate-type = ["cdylib"]
+
+
 [dependencies]
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+# napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
+# napi-derive = "2.12.2"
 etch_core = { workspace = true }
+etch_nextjs = { workspace = true }
 etch_html = { workspace = true }
+etch_svg = {  workspace = true }
 etch_tsx = { workspace = true }
 thiserror = { workspace = true }
 color-eyre = { workspace = true }
@@ -21,3 +30,16 @@ url = { workspace = true }
 chrono = { workspace = true }
 color-name = "1.1.0"
 palette = "0.7.6"
+serde = { workspace = true }
+serde_json = { workspace = true }
+ts-rs = { workspace = true }
+ratatui = "0.25.0"
+crossterm = "0.27.0"
+
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true
+strip = "symbols"

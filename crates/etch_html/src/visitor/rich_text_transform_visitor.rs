@@ -219,7 +219,7 @@ mod tests {
                 }
                 '>' => {
                     formatted.push('>');
-                    if chars.peek().map_or(false, |&next| next != '<') {
+                    if chars.peek().is_some_and(|&next| next != '<') {
                         formatted.push('\n');
                         formatted.push_str(&indent_str.repeat(depth));
                     }

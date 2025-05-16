@@ -1,3 +1,5 @@
+
+
 [package]
 name = "etch_svg"
 version.workspace = true
@@ -14,3 +16,4 @@ swc_ecma_parser = { workspace = true }
 swc_ecma_visit = { workspace = true }
 swc_ecma_codegen = { workspace = true }
 swc_atoms = { workspace = true }
+svgr-rs = { workspace = true }

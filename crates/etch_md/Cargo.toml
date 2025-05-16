@@ -1,5 +1,7 @@
+
+
 [package]
-name = "etch"
+name = "etch_md"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

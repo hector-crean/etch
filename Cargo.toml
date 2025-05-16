@@ -1,9 +1,7 @@
 [workspace]
-members = [ "cli",
-    "crates/*"
-]
+members = ["cli", "crates/*"]
 resolver = "2"
-
+edition = "2024"
 
 [workspace.package]
 version = "0.1.0"
@@ -18,6 +16,8 @@ etch_html = { path = "crates/etch_html" }
 etch_md = { path = "crates/etch_md" }
 etch_tsx = { path = "crates/etch_tsx" }
 etch_figma = { path = "crates/etch_figma" }
+etch_nextjs = { path = "crates/etch_nextjs" }
+etch_svg = { path = "crates/etch_svg" }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0"
 color-eyre = "0.6.3"
@@ -33,14 +33,18 @@ swc_ecma_parser = "10.0.0"
 swc_ecma_visit = "8.0.0"
 swc_common = "8.0.0"
 swc_ecma_ast = "8.0.0"
-swc_ecma_codegen ="8.0.1"
+swc_ecma_codegen = "8.0.1"
 swc_atoms = "5.0.0"
 regex = "1.9.1"
-reqwest = { version = "0.12.0", features = ["json", "blocking"] }
+reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
+futures = "0.3"
+
 tokio = { version = "1.39.0", features = ["full"] }
 url = "2.4.0"
 clap = { version = "4.5.23", features = ["derive"] }
 colored = "2.0.0"
+ts-rs = {version = "10.1.0", features = ["serde-json-impl"]}
+svgr-rs = "0.2.0"
 
 [profile.release]
 opt-level = 3

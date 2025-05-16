@@ -23,7 +23,7 @@ This guide provides instructions on how to use the Etch HTML command-line interf
    cargo run --release
    ```
 
-> Note: The compiled binary will be located in `target/release`. You can run it from there using `./etch_cli`
+> Note: The compiled binary will be located in `target/release`. You can run it from there using `./cli`
 
 ## Global Options
 
@@ -42,7 +42,7 @@ The CLI provides three main categories of commands:
 
 HTML-specific operations are grouped under the `html` command:
 
-./etch_cli html [SUBCOMMAND]
+./cli html [SUBCOMMAND]
 
 #### extract-svgs Subcommand
 
@@ -59,7 +59,7 @@ Extracts SVG elements from HTML files, writes them to a specified output directo
 **Example Usage:**
 ```bash
 #run from workspace route using cargo, or directrly use the binary './etch_cli' with the right file paths
-cargo run --bin etch_cli html extract-svgs \
+cargo run --bin cli html extract-svgs \
     --root-dir ./test/input \
     --output-dir ./test/output \
     --svg-import-type object \
