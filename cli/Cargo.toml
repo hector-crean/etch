@@ -35,7 +35,20 @@ serde_json = { workspace = true }
 ts-rs = { workspace = true }
 ratatui = "0.25.0"
 crossterm = "0.27.0"
+colored = "2.0.0"
+walkdir = "2.4.0"
+glob = "0.3.1"
 
+[dev-dependencies]
+tempfile = "3.8"
+
+[[bin]]
+name = "asset-relocator"
+path = "src/bin/asset_relocator.rs"
+
+[[bin]]
+name = "asset-relocator-example"
+path = "src/bin/asset_relocator_example.rs"
 
 [build-dependencies]
 napi-build = "2.0.1"
