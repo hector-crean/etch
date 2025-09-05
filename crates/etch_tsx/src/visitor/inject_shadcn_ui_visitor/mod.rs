@@ -1,7 +1,7 @@
 pub mod dangerously_set_node;
 pub mod dialog;
 
-use dialog::DialogOptions;
+use dialog::{derive_import_local_name, DialogContent, DialogOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -220,6 +220,82 @@ impl InjectShadcnUiVisitor {
 
         imports
     }
+
+    /// Gather wrapper-specific imports, e.g., TSX component imports for dialog content
+    fn get_wrapper_specific_imports(&self) -> Vec<ModuleItem> {
+        let mut imports: Vec<ModuleItem> = Vec::new();
+
+        // Track to avoid duplicates (path + local name)
+        let mut seen: HashSet<(String, String)> = HashSet::new();
+
+        for wrapper in self.component_wrappers.values() {
+            if let ComponentWrapper::Dialog(options) = wrapper {
+                if let Some(content) = &options.content {
+                    match content {
+                        DialogContent::TsxImport { import_path, import_name } => {
+                            let local = derive_import_local_name(import_path, import_name.as_deref());
+                            let key = (import_path.clone(), local.clone());
+                            if seen.insert(key) {
+                                let decl = if let Some(name) = import_name {
+                                    // Named import: import { Name } from "path"
+                                    ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                        span: DUMMY_SP,
+                                        phase: ImportPhase::Evaluation,
+                                        specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                                            span: DUMMY_SP,
+                                            local: Ident { span: DUMMY_SP, sym: name.clone().into(), optional: false, ctxt: SyntaxContext::empty() },
+                                            imported: None,
+                                            is_type_only: false,
+                                        })],
+                                        src: Box::new(Str { span: DUMMY_SP, value: import_path.clone().into(), raw: None }),
+                                        type_only: false,
+                                        with: None,
+                                    }))
+                                } else {
+                                    // Default import: import Local from "path"
+                                    ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                        span: DUMMY_SP,
+                                        phase: ImportPhase::Evaluation,
+                                        specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                                            span: DUMMY_SP,
+                                            local: Ident { span: DUMMY_SP, sym: local.into(), optional: false, ctxt: SyntaxContext::empty() },
+                                        })],
+                                        src: Box::new(Str { span: DUMMY_SP, value: import_path.clone().into(), raw: None }),
+                                        type_only: false,
+                                        with: None,
+                                    }))
+                                };
+                                imports.push(decl);
+                            }
+                        }
+                        DialogContent::Uri(uri) => {
+                            if uri.ends_with(".tsx") || uri.ends_with(".jsx") {
+                                let local = derive_import_local_name(uri, None);
+                                let key = (uri.clone(), local.clone());
+                                if seen.insert(key) {
+                                    let decl = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                        span: DUMMY_SP,
+                                        phase: ImportPhase::Evaluation,
+                                        specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                                            span: DUMMY_SP,
+                                            local: Ident { span: DUMMY_SP, sym: local.into(), optional: false, ctxt: SyntaxContext::empty() },
+                                        })],
+                                        src: Box::new(Str { span: DUMMY_SP, value: uri.clone().into(), raw: None }),
+                                        type_only: false,
+                                        with: None,
+                                    }));
+                                    imports.push(decl);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        imports
+    }
 }
 
 impl VisitMut for InjectShadcnUiVisitor {
@@ -307,7 +383,10 @@ impl VisitMut for InjectShadcnUiVisitor {
         module.visit_mut_children_with(self);
 
         // Add imports for the used actions
-        let imports = self.get_action_imports(&used_actions);
+        let mut imports = self.get_action_imports(&used_actions);
+        // Add wrapper-specific imports (e.g., TSX component imports)
+        let mut wrapper_imports = self.get_wrapper_specific_imports();
+        imports.append(&mut wrapper_imports);
 
         // Insert at the beginning of the module, in reverse order to maintain desired order
         for import in imports.into_iter().rev() {

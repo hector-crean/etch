@@ -3,7 +3,6 @@
 // #[macro_use]
 // extern crate napi_derive;
 
-pub mod core;
 pub mod figma_conversion;
 
 use clap::{Parser, Subcommand};
@@ -47,21 +46,7 @@ pub enum Commands {
   ///  Processing commands
   ///
   /// Contains subcommands specific to Figma file processing
-  Figma {
-    #[command(subcommand)]
-    cmd: FigmaCommands,
-  },
-}
-
-/// Figma-specific commands and operations
-///
-/// This enum contains all commands related to Figma processing,
-/// including extracting React components from Figma.
-///
-
-#[derive(Subcommand)]
-pub enum FigmaCommands {
-  GenerateNextjsPages {
+  GenerateTsx {
     /// The pages directory
     ///
     #[arg(short, long)]
@@ -73,3 +58,5 @@ pub enum FigmaCommands {
     app_config_path: PathBuf,
   },
 }
+
+
