@@ -1,0 +1,21 @@
+[package]
+name = "etch_figma"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+dotenv = { workspace = true}
+env_logger = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+figma-api = { version = "0.31.3"}
+swc_common = { workspace = true }
+swc_ecma_ast = { workspace = true }
+swc_ecma_codegen = { workspace = true }

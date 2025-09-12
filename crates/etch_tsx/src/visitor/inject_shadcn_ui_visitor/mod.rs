@@ -1,11 +1,27 @@
 pub mod dangerously_set_node;
 pub mod dialog;
+pub mod hover_card;
+pub mod popover;
+pub mod sheet;
+pub mod tooltip;
+pub mod link;
+pub mod drawer;
+pub mod button;
+pub mod accordion;
 
 use dialog::{derive_import_local_name, DialogContent, DialogOptions};
+use hover_card::{HoverCardOptions, create_hover_card_component};
+use popover::{PopoverOptions, create_popover_component};
+use sheet::{SheetOptions, create_sheet_component};
+use tooltip::{TooltipOptions, create_tooltip_component};
+use link::{LinkOptions, RoutingLibrary, create_link_component};
+use drawer::{DrawerOptions, create_drawer_component};
+use button::{ButtonOptions, create_button_component};
+use accordion::create_accordion_component;
+pub use accordion::AccordionOptions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use swc_atoms::Atom;
 use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::*;
 use swc_ecma_visit::{VisitMut, VisitMutWith};
@@ -67,6 +83,7 @@ pub enum ComponentWrapper {
     Link(LinkOptions),
     Drawer(DrawerOptions),
     Button(ButtonOptions),
+    Accordion(AccordionOptions),
 }
 
 /// A visitor that adds event handlers to JSX elements and transforms JSX structure
@@ -104,6 +121,24 @@ impl InjectShadcnUiVisitor {
             .entry(import_path.to_string())
             .or_default()
             .insert(action_name.to_string());
+    }
+
+    /// Register Link imports based on routing library
+    pub fn register_link_imports(&mut self, routing_library: &RoutingLibrary) {
+        match routing_library {
+            RoutingLibrary::NextJs => {
+                self.register_action_import("Link", "next/link");
+            }
+            RoutingLibrary::Wouter => {
+                self.register_action_import("Link", "wouter");
+            }
+            RoutingLibrary::ReactRouter => {
+                self.register_action_import("Link", "react-router-dom");
+            }
+            RoutingLibrary::Native => {
+                // Native <a> tags don't need imports
+            }
+        }
     }
 
     /// Register default import paths for all actions
@@ -162,6 +197,19 @@ impl InjectShadcnUiVisitor {
         // Also register Button if not already registered
         let button_path = "@/components/ui/button";
         self.register_action_import("Button", button_path);
+        
+        // Tooltip actions
+        let tooltip_path = "@/components/ui/tooltip";
+        self.register_action_import("Tooltip", tooltip_path);
+        self.register_action_import("TooltipTrigger", tooltip_path);
+        self.register_action_import("TooltipContent", tooltip_path);
+
+        // Accordion actions
+        let accordion_path = "@/components/ui/accordion";
+        self.register_action_import("Accordion", accordion_path);
+        self.register_action_import("AccordionItem", accordion_path);
+        self.register_action_import("AccordionTrigger", accordion_path);
+        self.register_action_import("AccordionContent", accordion_path);
 
         // Add more action imports as needed
         // For example, navigation actions might come from a different path
@@ -305,8 +353,9 @@ impl VisitMut for InjectShadcnUiVisitor {
             self.register_default_imports();
         }
 
-        // First collect all used actions
+        // First collect all used actions and routing libraries
         let mut used_actions = HashSet::new();
+        let mut link_routing_libs = HashSet::new();
 
         // From component wrappers
         for wrapper in self.component_wrappers.values() {
@@ -342,10 +391,11 @@ impl VisitMut for InjectShadcnUiVisitor {
                     used_actions.insert("TooltipContent".to_string());
                     used_actions.insert("Button".to_string());
                 }
-                ComponentWrapper::Link(_) => {
-                    // Add link-related components to used actions
+                ComponentWrapper::Link(options) => {
+                    // Collect Link routing library and add to used actions
+                    let routing_lib = options.routing_library.as_ref().unwrap_or(&RoutingLibrary::NextJs);
+                    link_routing_libs.insert(routing_lib.clone());
                     used_actions.insert("Link".to_string());
-                    used_actions.insert("Button".to_string());
                 }
                 ComponentWrapper::Sheet(_) => {
                     // Add sheet-related components to used actions
@@ -375,8 +425,19 @@ impl VisitMut for InjectShadcnUiVisitor {
                 ComponentWrapper::Button(_) => {
                     // Add button-related components to used actions
                     used_actions.insert("Button".to_string());
+                }
+                ComponentWrapper::Accordion(_) => {
+                    used_actions.insert("Accordion".to_string());
+                    used_actions.insert("AccordionItem".to_string());
+                    used_actions.insert("AccordionTrigger".to_string());
+                    used_actions.insert("AccordionContent".to_string());
                 } // Add more component types as needed
             }
+        }
+
+        // Register Link imports for collected routing libraries
+        for routing_lib in &link_routing_libs {
+            self.register_link_imports(routing_lib);
         }
 
         // Process all JSX elements
@@ -439,10 +500,11 @@ impl VisitMut for InjectShadcnUiVisitor {
                     ComponentWrapper::Drawer(options) => {
                         *node = options.generate_component(original_element);
                     }
-
-                    // Handle other component types
-                    _ => {
-                        *node = original_element; // Just restore if not implemented
+                    ComponentWrapper::Button(options) => {
+                        *node = options.generate_component(original_element);
+                    }
+                    ComponentWrapper::Accordion(options) => {
+                        *node = options.generate_component(original_element);
                     }
                 }
 
@@ -532,48 +594,17 @@ impl ComponentGenerator for DrawerOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct HoverCardOptions {
-    pub id: String,
-    pub trigger_id: Option<String>,
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub content: Option<String>,
-    pub open_delay: Option<u32>,
-    pub close_delay: Option<u32>,
+impl ComponentGenerator for AccordionOptions {
+    fn generate_component(&self, trigger_element: JSXElement) -> JSXElement {
+        let _ = trigger_element; // not used by Accordion
+        create_accordion_component(create_empty_jsx_element(), self)
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct PopoverOptions {
-    pub id: String,
-    pub trigger_id: Option<String>,
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub content: Option<String>,
-    pub alignment: Option<String>, // "start", "center", "end"
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct SheetOptions {
-    pub id: String,
-    pub trigger_id: Option<String>,
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub side: Option<String>, // "top", "right", "bottom", "left"
-    pub content: Option<String>,
-    pub has_footer: Option<bool>,
-    pub footer_buttons: Option<Vec<SheetButton>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct SheetButton {
-    pub label: String,
-    pub variant: Option<String>, // "default", "destructive", "outline", etc.
-    pub action: Option<String>,  // Function to call when clicked
+impl ComponentGenerator for ButtonOptions {
+    fn generate_component(&self, trigger_element: JSXElement) -> JSXElement {
+        create_button_component(trigger_element, self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
@@ -599,1314 +630,5 @@ pub struct ToastOptions {
     pub duration: Option<u32>,  // Duration in milliseconds
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct TooltipOptions {
-    pub id: String,
-    pub trigger_id: Option<String>,
-    pub content: String,
-    pub side: Option<String>,  // "top", "right", "bottom", "left"
-    pub align: Option<String>, // "start", "center", "end"
-    pub delay_duration: Option<u32>,
-    pub skip_delay_duration: Option<u32>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct LinkOptions {
-    pub id: String,
-    pub href: String,
-    pub target: Option<String>,  // "_blank", "_self", etc.
-    pub rel: Option<String>,     // "noopener", "noreferrer", etc.
-    pub as_button: Option<bool>, // Whether to style as a button
-    pub variant: Option<String>, // If as_button is true: "default", "destructive", etc.
-    pub size: Option<String>,    // If as_button is true: "default", "sm", "lg"
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct ButtonOptions {
-    pub id: String,
-    pub label: String,
-    pub variant: Option<String>, // "default", "destructive", "outline", etc.
-    pub action: Option<String>,  // Function to call when clicked
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq, Hash, TS)]
-#[ts(export)]
-pub struct DrawerOptions {
-    pub id: String,
-    pub title: Option<String>,
-    pub description: Option<String>,
-}
-
-/// Creates a HoverCard component with the original element as the trigger
-fn create_hover_card_component(
-    trigger_element: JSXElement,
-    options: &HoverCardOptions,
-) -> JSXElement {
-    // Create HoverCard root element
-    let mut hover_card_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCard".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCard".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Add delay attributes if specified
-    if let Some(open_delay) = options.open_delay {
-        hover_card_jsx
-            .opening
-            .attrs
-            .push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "openDelay".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                    span: DUMMY_SP,
-                    expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Num(Number {
-                        span: DUMMY_SP,
-                        value: open_delay as f64,
-                        raw: None,
-                    })))),
-                })),
-            }));
-    }
-
-    if let Some(close_delay) = options.close_delay {
-        hover_card_jsx
-            .opening
-            .attrs
-            .push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "closeDelay".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                    span: DUMMY_SP,
-                    expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Num(Number {
-                        span: DUMMY_SP,
-                        value: close_delay as f64,
-                        raw: None,
-                    })))),
-                })),
-            }));
-    }
-
-    // Create HoverCardTrigger with asChild prop
-    let trigger_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCardTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "asChild".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: None, // Boolean attribute with no value
-            })],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![JSXElementChild::JSXElement(Box::new(trigger_element))],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCardTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create HoverCardContent
-    let mut content_children = Vec::new();
-
-    // Add title if provided
-    if let Some(title) = &options.title {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "className".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                        span: DUMMY_SP,
-                        value: "font-medium".into(),
-                        raw: None,
-                    }))),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![JSXElementChild::JSXText(JSXText {
-                span: DUMMY_SP,
-                value: title.clone().into(),
-                raw: Atom::default(),
-            })],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add description if provided
-    if let Some(description) = &options.description {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "p".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "className".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                        span: DUMMY_SP,
-                        value: "text-sm text-muted-foreground".into(),
-                        raw: None,
-                    }))),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![JSXElementChild::JSXText(JSXText {
-                span: DUMMY_SP,
-                value: description.clone().into(),
-                raw: Atom::default(),
-            })],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "p".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add custom content if provided
-    if let Some(content) = &options.content {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "dangerouslySetInnerHTML".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                        span: DUMMY_SP,
-                        expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
-                            span: DUMMY_SP,
-                            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                KeyValueProp {
-                                    key: PropName::Ident(
-                                        Ident {
-                                            span: DUMMY_SP,
-                                            sym: "__html".into(),
-                                            optional: false,
-                                            ctxt: SyntaxContext::empty(),
-                                        }
-                                        .into(),
-                                    ),
-                                    value: Box::new(Expr::Lit(Lit::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: content.clone().into(),
-                                        raw: None,
-                                    }))),
-                                },
-                            )))],
-                        }))),
-                    })),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Create content element with all content
-    let content_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCardContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "className".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                    span: DUMMY_SP,
-                    value: "w-80 p-4".into(),
-                    raw: None,
-                }))),
-            })],
-            self_closing: false,
-            type_args: None,
-        },
-        children: content_children,
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "HoverCardContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Add the trigger and content to the hover card
-    hover_card_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(trigger_jsx)));
-    hover_card_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(content_jsx)));
-
-    hover_card_jsx
-}
-
-/// Creates a Popover component with the original element as the trigger
-fn create_popover_component(trigger_element: JSXElement, options: &PopoverOptions) -> JSXElement {
-    // Create Popover root element
-    let mut popover_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Popover".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Popover".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create PopoverTrigger with asChild prop
-    let trigger_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "PopoverTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "asChild".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: None, // Boolean attribute with no value
-            })],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![JSXElementChild::JSXElement(Box::new(trigger_element))],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "PopoverTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create PopoverContent
-    let mut content_children = Vec::new();
-
-    // Add title if provided
-    if let Some(title) = &options.title {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "className".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                        span: DUMMY_SP,
-                        value: "font-medium pb-2".into(),
-                        raw: None,
-                    }))),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![JSXElementChild::JSXText(JSXText {
-                span: DUMMY_SP,
-                value: title.clone().into(),
-                raw: Atom::default(),
-            })],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add description if provided
-    if let Some(description) = &options.description {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "p".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "className".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                        span: DUMMY_SP,
-                        value: "text-sm text-muted-foreground".into(),
-                        raw: None,
-                    }))),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![JSXElementChild::JSXText(JSXText {
-                span: DUMMY_SP,
-                value: description.clone().into(),
-                raw: Atom::default(),
-            })],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "p".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add custom content if provided
-    if let Some(content) = &options.content {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "dangerouslySetInnerHTML".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                        span: DUMMY_SP,
-                        expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
-                            span: DUMMY_SP,
-                            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                KeyValueProp {
-                                    key: PropName::Ident(
-                                        Ident {
-                                            span: DUMMY_SP,
-                                            sym: "__html".into(),
-                                            optional: false,
-                                            ctxt: SyntaxContext::empty(),
-                                        }
-                                        .into(),
-                                    ),
-                                    value: Box::new(Expr::Lit(Lit::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: content.clone().into(),
-                                        raw: None,
-                                    }))),
-                                },
-                            )))],
-                        }))),
-                    })),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Create content element with alignment
-    let mut content_attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-        span: DUMMY_SP,
-        name: JSXAttrName::Ident(
-            Ident {
-                span: DUMMY_SP,
-                sym: "className".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }
-            .into(),
-        ),
-        value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-            span: DUMMY_SP,
-            value: "w-80 p-4".into(),
-            raw: None,
-        }))),
-    })];
-
-    // Add alignment if specified
-    if let Some(alignment) = &options.alignment {
-        content_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-            span: DUMMY_SP,
-            name: JSXAttrName::Ident(
-                Ident {
-                    span: DUMMY_SP,
-                    sym: "align".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }
-                .into(),
-            ),
-            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                span: DUMMY_SP,
-                value: alignment.clone().into(),
-                raw: None,
-            }))),
-        }));
-    }
-
-    let content_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "PopoverContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: content_attrs,
-            self_closing: false,
-            type_args: None,
-        },
-        children: content_children,
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "PopoverContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Add the trigger and content to the popover
-    popover_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(trigger_jsx)));
-    popover_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(content_jsx)));
-
-    popover_jsx
-}
-
-/// Creates a Sheet component with the original element as the trigger
-fn create_sheet_component(trigger_element: JSXElement, options: &SheetOptions) -> JSXElement {
-    // Create Sheet root element
-    let mut sheet_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Sheet".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Sheet".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create SheetTrigger with asChild prop
-    let trigger_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "SheetTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "asChild".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: None, // Boolean attribute with no value
-            })],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![JSXElementChild::JSXElement(Box::new(trigger_element))],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "SheetTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create content attributes with side if specified
-    let mut content_attrs = vec![];
-
-    if let Some(side) = &options.side {
-        content_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-            span: DUMMY_SP,
-            name: JSXAttrName::Ident(
-                Ident {
-                    span: DUMMY_SP,
-                    sym: "side".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }
-                .into(),
-            ),
-            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                span: DUMMY_SP,
-                value: side.clone().into(),
-                raw: None,
-            }))),
-        }));
-    }
-
-    // Create content with header and body
-    let mut content_children = Vec::new();
-
-    // Add SheetHeader with Title and Description
-    if options.title.is_some() || options.description.is_some() {
-        let mut header_children = Vec::new();
-
-        if let Some(title) = &options.title {
-            header_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "SheetTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: title.clone().into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "SheetTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            })));
-        }
-
-        if let Some(description) = &options.description {
-            header_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "SheetDescription".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: description.clone().into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "SheetDescription".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            })));
-        }
-
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "SheetHeader".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![],
-                self_closing: false,
-                type_args: None,
-            },
-            children: header_children,
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "SheetHeader".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add custom content if provided
-    if let Some(content) = &options.content {
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "dangerouslySetInnerHTML".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                        span: DUMMY_SP,
-                        expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
-                            span: DUMMY_SP,
-                            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                KeyValueProp {
-                                    key: PropName::Ident(
-                                        Ident {
-                                            span: DUMMY_SP,
-                                            sym: "__html".into(),
-                                            optional: false,
-                                            ctxt: SyntaxContext::empty(),
-                                        }
-                                        .into(),
-                                    ),
-                                    value: Box::new(Expr::Lit(Lit::Str(Str {
-                                        span: DUMMY_SP,
-                                        value: content.clone().into(),
-                                        raw: None,
-                                    }))),
-                                },
-                            )))],
-                        }))),
-                    })),
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "div".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Create content element with all content
-    let content_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "SheetContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: content_attrs,
-            self_closing: false,
-            type_args: None,
-        },
-        children: content_children,
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "SheetContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Add the trigger and content to the sheet
-    sheet_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(trigger_jsx)));
-    sheet_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(content_jsx)));
-
-    sheet_jsx
-}
-
-/// Creates a Tooltip component with the original element as the trigger
-fn create_tooltip_component(trigger_element: JSXElement, options: &TooltipOptions) -> JSXElement {
-    // Implementation would create a Tooltip component with the given options
-    // For now just returning a stub
-    create_empty_jsx_element()
-}
-
-/// Creates a Link component with the original element as the trigger
-fn create_link_component(trigger_element: JSXElement, options: &LinkOptions) -> JSXElement {
-    // Implementation would create a Link component with the given options
-    // For now just returning a stub
-    create_empty_jsx_element()
-}
-
-/// Creates a Drawer component with the original element as the trigger
-fn create_drawer_component(trigger_element: JSXElement, options: &DrawerOptions) -> JSXElement {
-    // Create Drawer root element
-    let mut drawer_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Drawer".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "Drawer".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create DrawerTrigger with asChild prop
-    let trigger_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                span: DUMMY_SP,
-                name: JSXAttrName::Ident(
-                    Ident {
-                        span: DUMMY_SP,
-                        sym: "asChild".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }
-                    .into(),
-                ),
-                value: None, // Boolean attribute with no value
-            })],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![JSXElementChild::JSXElement(Box::new(trigger_element))],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerTrigger".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Create content with header and body
-    let mut content_children = Vec::new();
-
-    // Add DrawerHeader with Title and Description
-    if options.title.is_some() || options.description.is_some() {
-        let mut header_children = Vec::new();
-
-        if let Some(title) = &options.title {
-            header_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DrawerTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: title.clone().into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DrawerTitle".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            })));
-        }
-
-        if let Some(description) = &options.description {
-            header_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DrawerDescription".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: description.clone().into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "DrawerDescription".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            })));
-        }
-
-        content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "DrawerHeader".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![],
-                self_closing: false,
-                type_args: None,
-            },
-            children: header_children,
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "DrawerHeader".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        })));
-    }
-
-    // Add a basic footer with a close button
-    let footer_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerFooter".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: vec![JSXElementChild::JSXElement(Box::new(JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "DrawerClose".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                    span: DUMMY_SP,
-                    name: JSXAttrName::Ident(
-                        Ident {
-                            span: DUMMY_SP,
-                            sym: "asChild".into(),
-                            optional: false,
-                            ctxt: SyntaxContext::empty(),
-                        }
-                        .into(),
-                    ),
-                    value: None,
-                })],
-                self_closing: false,
-                type_args: None,
-            },
-            children: vec![JSXElementChild::JSXElement(Box::new(JSXElement {
-                span: DUMMY_SP,
-                opening: JSXOpeningElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "Button".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                    attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-                        span: DUMMY_SP,
-                        name: JSXAttrName::Ident(
-                            Ident {
-                                span: DUMMY_SP,
-                                sym: "variant".into(),
-                                optional: false,
-                                ctxt: SyntaxContext::empty(),
-                            }
-                            .into(),
-                        ),
-                        value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                            span: DUMMY_SP,
-                            value: "outline".into(),
-                            raw: None,
-                        }))),
-                    })],
-                    self_closing: false,
-                    type_args: None,
-                },
-                children: vec![JSXElementChild::JSXText(JSXText {
-                    span: DUMMY_SP,
-                    value: "Close".into(),
-                    raw: Atom::default(),
-                })],
-                closing: Some(JSXClosingElement {
-                    span: DUMMY_SP,
-                    name: JSXElementName::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "Button".into(),
-                        optional: false,
-                        ctxt: SyntaxContext::empty(),
-                    }),
-                }),
-            }))],
-            closing: Some(JSXClosingElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "DrawerClose".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-            }),
-        }))],
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerFooter".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    content_children.push(JSXElementChild::JSXElement(Box::new(footer_jsx)));
-
-    // Create content element with all content
-    let content_jsx = JSXElement {
-        span: DUMMY_SP,
-        opening: JSXOpeningElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-            attrs: vec![],
-            self_closing: false,
-            type_args: None,
-        },
-        children: content_children,
-        closing: Some(JSXClosingElement {
-            span: DUMMY_SP,
-            name: JSXElementName::Ident(Ident {
-                span: DUMMY_SP,
-                sym: "DrawerContent".into(),
-                optional: false,
-                ctxt: SyntaxContext::empty(),
-            }),
-        }),
-    };
-
-    // Add the trigger and content to the drawer
-    drawer_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(trigger_jsx)));
-    drawer_jsx
-        .children
-        .push(JSXElementChild::JSXElement(Box::new(content_jsx)));
-
-    drawer_jsx
-}
+// Creates a HoverCard component with the original element as the trigger

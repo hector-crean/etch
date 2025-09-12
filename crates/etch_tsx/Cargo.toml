@@ -25,6 +25,11 @@ regex = { workspace = true }
 strum = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
+base64 = "0.22"
 
 [dev-dependencies]
 tempfile = "3.8"
+
+[[example]]
+name = "base64_extractor_usage"
+path = "../../examples/base64_extractor_usage.rs"

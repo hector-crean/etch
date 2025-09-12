@@ -1,11 +1,12 @@
 use etch_nextjs::*;
 use etch_svg::SvgConverter;
-use etch_tsx::pipeline::Pipeline;
+use etch_tsx::pipeline::{Pipeline, StatefulPipeline};
 use etch_tsx::visitor::framer_motion_visitor::{AnimationConfig, FramerMotionVisitor};
 use etch_tsx::visitor::inject_callbacks_visitor::Callback;
 use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
 use etch_tsx::visitor::inject_uuid_visitor::{InjectUuidPolicy, InjectUuidVisitor};
 use etch_tsx::visitor::nextjs_visitor::Runtime;
+use etch_tsx::visitor::xlink_visitor::XlinkBase64Extractor;
 use etch_tsx::visitor::{
   inject_callbacks_visitor::InjectCallbacksVisitor, inject_shadcn_ui_visitor::ComponentWrapper,
   nextjs_visitor::NextjsVisitor,
@@ -77,22 +78,33 @@ impl Project {
   }
 
   pub fn run(&self) -> Result<(), FigmaConversionError> {
-    self.process_entries(&self.file_tree)
+    // Start with empty path and build incrementally
+    let current_path = PathBuf::new();
+    self.process_entries(&self.file_tree, &current_path)
   }
 
   fn process_entries(
     &self,
     entries: &[AppRouterEntry<FigmaConversion>],
+    current_path: &Path,
   ) -> Result<(), FigmaConversionError> {
+
+
+
     for entry in entries.iter() {
       match entry {
         AppRouterEntry::Directory(dir) => {
-          // Recursively process children of this directory
-          info!("Processing directory: {:?}", dir.relative_path);
-          self.process_entries(&dir.children)?;
+          // Build the path incrementally by joining current path with this directory's segment
+          let dir_path = current_path.join(&dir.path_segment);
+          info!("Processing directory: {:?}", dir_path);
+          
+          // Recursively process children with the updated path
+          self.process_entries(&dir.children, &dir_path)?;
         }
         AppRouterEntry::File(file) => {
-          info!("Processing file: {:?}", file.relative_path);
+          // Build the file path incrementally by joining current path with this file's segment
+          let file_path = current_path.join(&file.path_segment);
+          info!("Processing file: {:?}", file_path);
 
           // Normalize the source file path string before converting to Path
           let normalized_source_path = Self::normalize_path_string(&file.data.source_file);
@@ -120,13 +132,10 @@ impl Project {
           let page = SvgConverter::new(&svg).to_react_component("Page").unwrap();
           info!("Converting SVG to React component");
 
-          // Normalize the relative path string before converting to Path
-          let normalized_relative_path = Self::normalize_path_string(&file.relative_path);
-          let relative_path = Path::new(&normalized_relative_path);
-          info!("Relative path: {:?}", relative_path);
+          info!("Built file path: {:?}", file_path);
 
-          // Construct full path for destination file using platform-agnostic join
-          let dest_file_path = self.base_dir.join(relative_path);
+          // Construct full path for destination file using the incrementally built path
+          let dest_file_path = self.base_dir.join(&file_path);
 
           // Ensure parent directory exists
           if let Some(parent) = dest_file_path.parent() {
@@ -136,8 +145,26 @@ impl Project {
           info!("Writing React component to: {:?}", dest_file_path);
           std::fs::write(&dest_file_path, page)?;
 
-          let mut pipeline = Pipeline::new();
+          // First, run the XlinkBase64Extractor separately to get extracted images
+          // Create an "assets" subdirectory for assets to match the @/assets import prefix
+          let asset_output_dir = self.base_dir.join("assets");
+          let xlink_extractor = XlinkBase64Extractor::new_with_file_imports(Some(asset_output_dir), "@/assets/".to_string());
+          let xlink_pipeline = StatefulPipeline::new(xlink_extractor);
+          let (tsx_with_base64_extracted, extractor) = xlink_pipeline.run(dest_file_path.clone())?;
+          
+          // Write the intermediate result back to the file for other visitors
+          std::fs::write(&dest_file_path, tsx_with_base64_extracted)?;
+          
+          // Log extracted images info
+          if !extractor.images().is_empty() {
+            info!("Extracted {} base64 images to assets/ directory", extractor.images().len());
+            for image in extractor.images().values() {
+              info!("  - {}.{} ({})", image.variable_name, image.file_extension, image.mime_type);
+            }
+          }
 
+          // Now run the other visitors with the regular pipeline
+          let mut pipeline = Pipeline::new();
           pipeline
             .add_visitor(InjectCallbacksVisitor::new(file.data.callbacks.clone()))
             .add_visitor(InjectShadcnUiVisitor::new(

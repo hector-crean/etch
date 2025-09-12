@@ -139,7 +139,7 @@ pub struct Directory<T> {
     #[serde(flatten)]
     pub directory_kind: AppRouterDirectoryKind,
     pub path_segment: String,
-    pub relative_path: String,
+    // pub relative_path: String,
     pub children: Vec<AppRouterEntry<T>>,
 }
 
@@ -149,7 +149,7 @@ pub struct File<T> {
     #[serde(flatten)]
     pub file_kind: AppRouterFileKind,
     pub path_segment: String,
-    pub relative_path: String,
+    // pub relative_path: String,
     pub data: T,
 }
 
@@ -216,7 +216,7 @@ fn build_tree<T: Default>(path: &Path, base_dir: &Path) -> Result<AppRouterEntry
         Ok(AppRouterEntry::Directory(Directory {
             directory_kind,
             path_segment,
-            relative_path: relative_path.to_string_lossy().into_owned(),
+            // relative_path: relative_path.to_string_lossy().into_owned(),
             children,
         }))
     } else {
@@ -226,7 +226,7 @@ fn build_tree<T: Default>(path: &Path, base_dir: &Path) -> Result<AppRouterEntry
         Ok(AppRouterEntry::File(File {
             file_kind,
             path_segment,
-            relative_path: relative_path.to_string_lossy().into_owned(),
+            // relative_path: relative_path.to_string_lossy().into_owned(),
             data: T::default(),
         }))
     }
