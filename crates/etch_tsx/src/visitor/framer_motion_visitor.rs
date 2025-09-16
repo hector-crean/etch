@@ -30,12 +30,19 @@ pub struct AnimationConfig<
     pub variants: Option<Variant>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transition: Option<Transition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "boolean | 'position'")]
+    pub layout: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "layoutId", alias = "layout_id")]
+    #[ts(rename = "layoutId")]
+    pub layout_id: Option<String>,
     // Add a flag to control whether animations should be inherited by children
     #[serde(default = "default_inherit_children")]
     pub inherit_children: bool,
 }
 
-impl<Initial, Animate, Exit, Variant, Transition> Default 
+impl<Initial, Animate, Exit, Variant, Transition> Default
     for AnimationConfig<Initial, Animate, Exit, Variant, Transition>
 where
     Initial: TS,
@@ -51,6 +58,8 @@ where
             exit: None,
             variants: None,
             transition: None,
+            layout: None,
+            layout_id: None,
             inherit_children: default_inherit_children(),
         }
     }
@@ -105,7 +114,10 @@ where
     Transition: TS + Clone + Serialize + for<'de> Deserialize<'de>,
 {
     pub fn new(
-        animations: HashMap<ElementId, AnimationConfig<Initial, Animate, Exit, Variant, Transition>>,
+        animations: HashMap<
+            ElementId,
+            AnimationConfig<Initial, Animate, Exit, Variant, Transition>,
+        >,
     ) -> Self {
         Self {
             animations,
@@ -173,7 +185,7 @@ where
     fn visit_mut_jsx_element(&mut self, node: &mut JSXElement) {
         // Process attributes to find the element ID
         let mut element_id = None;
-       
+
         // First pass: find the ID attribute and check if it's an SVG element
         for attr in &node.opening.attrs {
             if let JSXAttrOrSpread::JSXAttr(jsx_attr) = attr {
@@ -241,14 +253,14 @@ where
                         ident.sym = format!("motion.{}", tag_name).into();
                     }
                 }
-                
+
                 self.apply_animation_to_element(node, config);
             }
         }
 
         // Continue with children
         node.visit_mut_children_with(self);
-        
+
         // Restore the previous parent state after processing children
         self.current_parent_id = previous_parent_id;
         self.current_parent_config = previous_parent_config;
@@ -303,13 +315,27 @@ where
         if let Some(transition) = &config.transition {
             self.add_json_attribute(node, "transition", transition);
         }
+
+        // Layout animations
+        if let Some(layout) = &config.layout {
+            self.add_json_attribute(node, "layout", layout);
+        }
+
+        if let Some(layout_id) = &config.layout_id {
+            self.add_json_attribute(node, "layoutId", layout_id);
+        }
+
+        // Variants object
+        if let Some(variants) = &config.variants {
+            self.add_json_attribute(node, "variants", variants);
+        }
     }
 
     fn add_json_attribute<T: Serialize>(&self, node: &mut JSXElement, name: &str, value: &T) {
         // Convert the value to a JSX expression directly
         if let Ok(json_value) = serde_json::to_value(value) {
             let expr = self.json_value_to_expr(&json_value);
-            
+
             // Add the attribute with the direct expression
             node.opening.attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                 span: DUMMY_SP,
@@ -334,52 +360,73 @@ where
     fn json_value_to_expr(&self, value: &serde_json::Value) -> Expr {
         match value {
             serde_json::Value::Null => Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
-            serde_json::Value::Bool(b) => Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: *b })),
+            serde_json::Value::Bool(b) => Expr::Lit(Lit::Bool(Bool {
+                span: DUMMY_SP,
+                value: *b,
+            })),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
-                    Expr::Lit(Lit::Num(Number { span: DUMMY_SP, value: i as f64, raw: None }))
+                    Expr::Lit(Lit::Num(Number {
+                        span: DUMMY_SP,
+                        value: i as f64,
+                        raw: None,
+                    }))
                 } else if let Some(f) = n.as_f64() {
-                    Expr::Lit(Lit::Num(Number { span: DUMMY_SP, value: f, raw: None }))
+                    Expr::Lit(Lit::Num(Number {
+                        span: DUMMY_SP,
+                        value: f,
+                        raw: None,
+                    }))
                 } else {
                     // Fallback
-                    Expr::Lit(Lit::Num(Number { span: DUMMY_SP, value: 0.0, raw: None }))
+                    Expr::Lit(Lit::Num(Number {
+                        span: DUMMY_SP,
+                        value: 0.0,
+                        raw: None,
+                    }))
                 }
-            },
+            }
             serde_json::Value::String(s) => Expr::Lit(Lit::Str(Str {
                 span: DUMMY_SP,
                 value: s.clone().into(),
                 raw: None,
             })),
             serde_json::Value::Array(arr) => {
-                let elements = arr.iter()
-                    .map(|v| Some(ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(self.json_value_to_expr(v)),
-                    }))
+                let elements = arr
+                    .iter()
+                    .map(|v| {
+                        Some(ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(self.json_value_to_expr(v)),
+                        })
+                    })
                     .collect();
-                
+
                 Expr::Array(ArrayLit {
                     span: DUMMY_SP,
                     elems: elements,
                 })
-            },
+            }
             serde_json::Value::Object(obj) => {
-                let props = obj.iter()
-                    .map(|(k, v)| PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                        key: PropName::Str(Str {
-                            span: DUMMY_SP,
-                            value: k.clone().into(),
-                            raw: None,
-                        }),
-                        value: Box::new(self.json_value_to_expr(v)),
-                    }))))
+                let props = obj
+                    .iter()
+                    .map(|(k, v)| {
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str {
+                                span: DUMMY_SP,
+                                value: k.clone().into(),
+                                raw: None,
+                            }),
+                            value: Box::new(self.json_value_to_expr(v)),
+                        })))
+                    })
                     .collect();
-                
+
                 Expr::Object(ObjectLit {
                     span: DUMMY_SP,
                     props,
                 })
-            },
+            }
         }
     }
 }
