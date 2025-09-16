@@ -8,6 +8,7 @@ pub mod link;
 pub mod drawer;
 pub mod button;
 pub mod accordion;
+pub mod carousel;
 
 use dialog::{derive_import_local_name, DialogContent, DialogOptions};
 use hover_card::{HoverCardOptions, create_hover_card_component};
@@ -19,6 +20,8 @@ use drawer::{DrawerOptions, create_drawer_component};
 use button::{ButtonOptions, create_button_component};
 use accordion::create_accordion_component;
 pub use accordion::AccordionOptions;
+use carousel::create_carousel_component;
+pub use carousel::{CarouselOptions, CarouselItem};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -84,6 +87,7 @@ pub enum ComponentWrapper {
     Drawer(DrawerOptions),
     Button(ButtonOptions),
     Accordion(AccordionOptions),
+    Carousel(CarouselOptions),
 }
 
 /// A visitor that adds event handlers to JSX elements and transforms JSX structure
@@ -146,7 +150,7 @@ impl InjectShadcnUiVisitor {
         // UI component actions organized by component type
 
         // Dialog components
-        let dialog_path = "@/components/ui/dialog";
+        let dialog_path = "@/components/ui/circular-dialog";
         self.register_action_import("Dialog", dialog_path);
         self.register_action_import("DialogTrigger", dialog_path);
         self.register_action_import("DialogContent", dialog_path);
@@ -210,6 +214,14 @@ impl InjectShadcnUiVisitor {
         self.register_action_import("AccordionItem", accordion_path);
         self.register_action_import("AccordionTrigger", accordion_path);
         self.register_action_import("AccordionContent", accordion_path);
+
+        // Carousel actions
+        let carousel_path = "@/components/ui/carousel";
+        self.register_action_import("Carousel", carousel_path);
+        self.register_action_import("CarouselContent", carousel_path);
+        self.register_action_import("CarouselItem", carousel_path);
+        self.register_action_import("CarouselPrevious", carousel_path);
+        self.register_action_import("CarouselNext", carousel_path);
 
         // Add more action imports as needed
         // For example, navigation actions might come from a different path
@@ -280,8 +292,8 @@ impl InjectShadcnUiVisitor {
             if let ComponentWrapper::Dialog(options) = wrapper {
                 if let Some(content) = &options.content {
                     match content {
-                        DialogContent::TsxImport { import_path, import_name } => {
-                            let local = derive_import_local_name(import_path, import_name.as_deref());
+                        DialogContent::TsxImport { import_path, import_name, alias } => {
+                            let local = derive_import_local_name(import_path, import_name.as_deref(), alias.as_deref());
                             let key = (import_path.clone(), local.clone());
                             if seen.insert(key) {
                                 let decl = if let Some(name) = import_name {
@@ -318,7 +330,7 @@ impl InjectShadcnUiVisitor {
                         }
                         DialogContent::Uri(uri) => {
                             if uri.ends_with(".tsx") || uri.ends_with(".jsx") {
-                                let local = derive_import_local_name(uri, None);
+                                let local = derive_import_local_name(uri, None, None);
                                 let key = (uri.clone(), local.clone());
                                 if seen.insert(key) {
                                     let decl = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -431,6 +443,13 @@ impl VisitMut for InjectShadcnUiVisitor {
                     used_actions.insert("AccordionItem".to_string());
                     used_actions.insert("AccordionTrigger".to_string());
                     used_actions.insert("AccordionContent".to_string());
+                }
+                ComponentWrapper::Carousel(_) => {
+                    used_actions.insert("Carousel".to_string());
+                    used_actions.insert("CarouselContent".to_string());
+                    used_actions.insert("CarouselItem".to_string());
+                    used_actions.insert("CarouselPrevious".to_string());
+                    used_actions.insert("CarouselNext".to_string());
                 } // Add more component types as needed
             }
         }
@@ -504,6 +523,9 @@ impl VisitMut for InjectShadcnUiVisitor {
                         *node = options.generate_component(original_element);
                     }
                     ComponentWrapper::Accordion(options) => {
+                        *node = options.generate_component(original_element);
+                    }
+                    ComponentWrapper::Carousel(options) => {
                         *node = options.generate_component(original_element);
                     }
                 }
@@ -604,6 +626,12 @@ impl ComponentGenerator for AccordionOptions {
 impl ComponentGenerator for ButtonOptions {
     fn generate_component(&self, trigger_element: JSXElement) -> JSXElement {
         create_button_component(trigger_element, self)
+    }
+}
+
+impl ComponentGenerator for CarouselOptions {
+    fn generate_component(&self, trigger_element: JSXElement) -> JSXElement {
+        create_carousel_component(trigger_element, self)
     }
 }
 

@@ -88,13 +88,13 @@ impl SubNodeWalker {
         output.push_str("// This file contains React JSX components extracted from Figma text nodes\n\n");
         
         // Add React import
-        output.push_str("import React from 'react';\n\n");
+        output.push_str("import React, { ReactElement } from 'react';\n\n");
         
         // Add type definitions
         output.push_str("export interface FigmaTextComponent {\n");
         output.push_str("  id: string;\n");
         output.push_str("  name: string;\n");
-        output.push_str("  component: () => JSX.Element;\n");
+        output.push_str("  component: () => ReactElement;\n");
         output.push_str("}\n\n");
         
         // Generate individual component functions
@@ -104,7 +104,7 @@ impl SubNodeWalker {
             let readable_name = self.node_names.get(node_id).unwrap_or(&default_name);
             
             output.push_str(&format!("// Component for: {}\n", readable_name));
-            output.push_str(&format!("export const {} = (): JSX.Element => {};\n\n", component_name, tsx_string));
+            output.push_str(&format!("export const {} = (): ReactElement => {};\n\n", component_name, tsx_string));
         }
         
         // Generate the main export object

@@ -505,6 +505,50 @@ fn style_to_attrs(style: &TypeStyle, mapping: &StyleClassMapping) -> (Vec<String
     (classes, if inline_style.is_empty() { None } else { Some(inline_style.join(" ")) }, tag)
 }
 
+/// Parse CSS string into JSX style object properties
+fn parse_css_to_jsx_style_props(css_string: &str) -> Vec<PropOrSpread> {
+    let mut props = Vec::new();
+    
+    // Split by semicolon and parse each CSS property
+    for declaration in css_string.split(';') {
+        let declaration = declaration.trim();
+        if declaration.is_empty() {
+            continue;
+        }
+        
+        if let Some((property, value)) = declaration.split_once(':') {
+            let property = property.trim();
+            let value = value.trim();
+            
+            // Convert CSS property names to camelCase for JSX
+            let jsx_property = match property {
+                "font-size" => "fontSize",
+                "line-height" => "lineHeight", 
+                "letter-spacing" => "letterSpacing",
+                "font-weight" => "fontWeight",
+                "text-decoration" => "textDecoration",
+                "text-align" => "textAlign",
+                "color" => "color",
+                _ => property, // fallback for other properties
+            };
+            
+            props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(IdentName {
+                    span: DUMMY_SP,
+                    sym: jsx_property.into(),
+                }),
+                value: Box::new(Expr::Lit(Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: value.into(),
+                    raw: None,
+                }))),
+            }))));
+        }
+    }
+    
+    props
+}
+
 
 
 
@@ -588,11 +632,22 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
                     }));
                 }
                 if let Some(style_attr) = style_string.clone() {
-                    attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-                        span: DUMMY_SP,
-                        name: JSXAttrName::Ident(IdentName { span: DUMMY_SP, sym: "style".into() }),
-                        value: Some(JSXAttrValue::Lit(Lit::Str(Str { span: DUMMY_SP, value: style_attr.into(), raw: None }))),
-                    }));
+                    // Parse CSS string into JSX style object
+                    let style_props = parse_css_to_jsx_style_props(&style_attr);
+                    
+                    if !style_props.is_empty() {
+                        attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+                            span: DUMMY_SP,
+                            name: JSXAttrName::Ident(IdentName { span: DUMMY_SP, sym: "style".into() }),
+                            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                                span: DUMMY_SP,
+                                expr: JSXExpr::Expr(Box::new(Expr::Object(ObjectLit {
+                                    span: DUMMY_SP,
+                                    props: style_props,
+                                }))),
+                            })),
+                        }));
+                    }
                 }
 
                 let span_element = JSXElement {
@@ -696,6 +751,44 @@ impl JSXElementExt for JSXElement {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use figma_api::models::{Paint, SolidPaint, Color, TypeStyle};
 
+    #[test]
+    fn test_style_prop_as_object() {
+        // Create a simple style with inline properties
+        let style = TypeStyle {
+            font_size: Some(16.0),
+            font_weight: Some(700.0),
+            fills: Some(vec![Paint::SolidPaint(SolidPaint {
+                color: Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+                opacity: Some(1.0),
+                visible: Some(true),
+                blend_mode: None,
+            })]),
+            ..Default::default()
+        };
 
+        let mapping = StyleClassMapping::new()
+            .use_tailwind_font_sizes(false)
+            .fallback_to_inline_font_size(true)
+            .color_strategy(ColorStrategy::InlineHex);
 
+        let (classes, inline_style, _) = style_to_attrs(&style, &mapping);
+        
+        // Verify that we get inline styles
+        assert!(inline_style.is_some());
+        let style_string = inline_style.unwrap();
+        assert!(style_string.contains("font-size: 16px"));
+        assert!(style_string.contains("color: #ff0000"));
+
+        // Test CSS parsing
+        let props = parse_css_to_jsx_style_props(&style_string);
+        assert!(!props.is_empty());
+        
+        // The props should contain fontSize and color as camelCase properties
+        println!("Generated style props: {:?}", props);
+    }
+}

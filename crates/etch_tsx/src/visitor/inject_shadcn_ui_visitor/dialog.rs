@@ -14,9 +14,11 @@ pub enum DialogContent {
     RawHtml(String),
     /// Import a TSX/TS component and render it
     /// If import_name is None, we will import the default export
+    /// If alias is provided, it will be used as the local name for the import
     TsxImport {
         import_path: String,
         import_name: Option<String>,
+        alias: Option<String>,
     },
     /// Generic URI. If an SVG (.svg) is provided, we will try to inline it.
     /// Otherwise this may be rendered as a basic <img src> fallback in the future.
@@ -24,7 +26,12 @@ pub enum DialogContent {
 }
 
 /// Derive a stable local identifier for an import based on path and optional named export
-pub fn derive_import_local_name(import_path: &str, import_name: Option<&str>) -> String {
+/// If alias is provided, it takes precedence over both import_name and path-derived names
+pub fn derive_import_local_name(import_path: &str, import_name: Option<&str>, alias: Option<&str>) -> String {
+    if let Some(alias) = alias {
+        return alias.to_string();
+    }
+    
     if let Some(name) = import_name {
         return name.to_string();
     }
@@ -230,9 +237,10 @@ impl DialogOptions {
                 DialogContent::TsxImport {
                     import_path,
                     import_name,
+                    alias,
                 } => {
                     let local =
-                        derive_import_local_name(import_path.as_str(), import_name.as_deref());
+                        derive_import_local_name(import_path.as_str(), import_name.as_deref(), alias.as_deref());
                     content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
                         span: DUMMY_SP,
                         opening: JSXOpeningElement {
@@ -260,7 +268,7 @@ impl DialogOptions {
                         }
                     } else if uri.ends_with(".tsx") || uri.ends_with(".jsx") {
                         // Render the component; import will be injected elsewhere
-                        let local = derive_import_local_name(uri.as_str(), None);
+                        let local = derive_import_local_name(uri.as_str(), None, None);
                         content_children.push(JSXElementChild::JSXElement(Box::new(JSXElement {
                             span: DUMMY_SP,
                             opening: JSXOpeningElement {
