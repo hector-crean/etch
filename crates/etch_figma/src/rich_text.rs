@@ -84,6 +84,10 @@ pub struct StyleClassMapping {
 
     // Wrapper element
     pub wrapper_tag: String,
+
+    // Superscript detection
+    pub detect_superscripts: bool,
+    pub superscript_size_threshold: f32, // Ratio threshold (e.g., 0.75 means 75% of base size)
 }
 
 impl Default for StyleClassMapping {
@@ -152,7 +156,11 @@ impl Default for StyleClassMapping {
             fallback_to_inline_line_height: false,
             fallback_to_inline_letter_spacing: false,
 
-            wrapper_tag: "span".to_string(),
+            wrapper_tag: "div".to_string(),
+
+            // Superscript detection defaults
+            detect_superscripts: true,
+            superscript_size_threshold: 0.75, // 75% of base font size
         }
     }
 }
@@ -281,6 +289,16 @@ impl StyleClassMapping {
         self.wrapper_tag = tag.into();
         self
     }
+
+    pub fn detect_superscripts(mut self, enabled: bool) -> Self {
+        self.detect_superscripts = enabled;
+        self
+    }
+
+    pub fn superscript_size_threshold(mut self, threshold: f32) -> Self {
+        self.superscript_size_threshold = threshold;
+        self
+    }
 }
 
 fn color_to_css(paint: &Paint, strategy: ColorStrategy) -> Option<String> {
@@ -386,11 +404,22 @@ fn letter_spacing_to_tailwind(letter_spacing: f32, mapping: &StyleClassMapping) 
 
 fn style_to_attrs(
     style: &TypeStyle,
+    base_style: &TypeStyle,
     mapping: &StyleClassMapping,
 ) -> (Vec<String>, Option<String>, Option<String>) {
     let mut classes: Vec<String> = Vec::new();
     let mut inline_style: Vec<String> = Vec::new();
-    let tag: Option<String> = None;
+    let mut tag: Option<String> = None;
+
+    // Check if this should be a superscript
+    if mapping.detect_superscripts {
+        if let (Some(current_size), Some(base_size)) = (style.font_size, base_style.font_size) {
+            let size_ratio = (current_size / base_size) as f32;
+            if size_ratio <= mapping.superscript_size_threshold {
+                tag = Some("sup".to_string());
+            }
+        }
+    }
 
     // Font size - prefer Tailwind classes
     if let Some(font_size) = style.font_size {
@@ -613,14 +642,18 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
     } else {
         for (start, end, idx) in runs {
             let base_style = &text.style;
-            let (mut classes, inline_style, _tag) = style_to_attrs(base_style, mapping);
+            let (mut classes, inline_style, mut tag) = style_to_attrs(base_style, base_style, mapping);
             let mut style_string = inline_style;
 
             if idx != 0 {
                 let key = idx.to_string();
                 if let Some(override_style) = text.style_override_table.get(&key) {
-                    let (o_classes, o_inline, _o_tag) = style_to_attrs(override_style, mapping);
+                    let (o_classes, o_inline, o_tag) = style_to_attrs(override_style, base_style, mapping);
                     classes.extend(o_classes);
+                    // Use override tag if present
+                    if o_tag.is_some() {
+                        tag = o_tag;
+                    }
                     // Merge inline styles by concatenation; JSX style prop as string attribute
                     let merged_inline = match (style_string.clone(), o_inline) {
                         (Some(mut a), Some(b)) => {
@@ -648,10 +681,13 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
             // If there are no classes or inline styles, push plain text child
             let all_classes = classes;
 
-            if all_classes.is_empty() && style_string.is_none() {
+            // Determine the element tag to use (span, sup, etc.)
+            let element_tag = tag.as_deref().unwrap_or("span");
+
+            if all_classes.is_empty() && style_string.is_none() && element_tag == "span" {
                 children.push(jsx_text_child(text_segment));
             } else {
-                // Build <span className="..." style="...">text</span>
+                // Build <element_tag className="..." style="...">text</element_tag>
                 let mut attrs: Vec<JSXAttrOrSpread> = Vec::new();
                 if !all_classes.is_empty() {
                     attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
@@ -689,13 +725,13 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
                     }
                 }
 
-                let span_element = JSXElement {
+                let styled_element = JSXElement {
                     span: DUMMY_SP,
                     opening: JSXOpeningElement {
                         span: DUMMY_SP,
                         name: JSXElementName::Ident(Ident {
                             span: DUMMY_SP,
-                            sym: "span".into(),
+                            sym: element_tag.into(),
                             optional: false,
                             ctxt: SyntaxContext::empty(),
                         }),
@@ -708,14 +744,14 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
                         span: DUMMY_SP,
                         name: JSXElementName::Ident(Ident {
                             span: DUMMY_SP,
-                            sym: "span".into(),
+                            sym: element_tag.into(),
                             optional: false,
                             ctxt: SyntaxContext::empty(),
                         }),
                     }),
                 };
 
-                children.push(JSXElementChild::JSXElement(Box::new(span_element)));
+                children.push(JSXElementChild::JSXElement(Box::new(styled_element)));
             }
         }
     }
@@ -731,7 +767,18 @@ pub fn textnode_to_jsx_with_mapping(text: &TextNode, mapping: &StyleClassMapping
                 optional: false,
                 ctxt: SyntaxContext::empty(),
             }),
-            attrs: vec![],
+            attrs: vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+                span: DUMMY_SP,
+                name: JSXAttrName::Ident(IdentName {
+                    span: DUMMY_SP,
+                    sym: "data-rich-text".into(),
+                }),
+                value: Some(JSXAttrValue::Lit(Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: "true".into(),
+                    raw: None,
+                }))),
+            })],
             self_closing: false,
             type_args: None,
         },

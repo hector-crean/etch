@@ -408,6 +408,9 @@ impl VisitMut for InjectShadcnUiVisitor {
                     let routing_lib = options.routing_library.as_ref().unwrap_or(&RoutingLibrary::NextJs);
                     link_routing_libs.insert(routing_lib.clone());
                     used_actions.insert("Link".to_string());
+                    if options.as_button {
+                        used_actions.insert("Button".to_string());
+                    }
                 }
                 ComponentWrapper::Sheet(_) => {
                     // Add sheet-related components to used actions

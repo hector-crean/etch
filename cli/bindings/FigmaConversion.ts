@@ -2,6 +2,7 @@
 import type { AnimationConfig } from "./AnimationConfig";
 import type { Callback } from "./Callback";
 import type { ComponentWrapper } from "./ComponentWrapper";
+import type { GlowFilterProps } from "./GlowFilterProps";
 import type { JsonValue } from "./serde_json/JsonValue";
 
-export type FigmaConversion = { source_file: string, callbacks: { [key in string]?: Array<Callback> }, component_wrappers: { [key in string]?: ComponentWrapper }, action_imports: { [key in string]?: Array<string> }, animations: { [key in string]?: AnimationConfig<JsonValue, JsonValue, JsonValue, JsonValue, JsonValue> }, };
+export type FigmaConversion = { source_file: string, callbacks: { [key in string]?: Array<Callback> }, component_wrappers: { [key in string]?: ComponentWrapper }, action_imports: { [key in string]?: Array<string> }, animations: { [key in string]?: AnimationConfig<JsonValue, JsonValue, JsonValue, JsonValue, JsonValue> }, filters: { [key in string]?: GlowFilterProps }, };

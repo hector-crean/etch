@@ -1,6 +1,7 @@
 use etch_nextjs::*;
 use etch_svg::SvgConverter;
 use etch_tsx::pipeline::{Pipeline, StatefulPipeline};
+use etch_tsx::visitor::filter_visitor::{FilterVisitor, GlowFilterProps};
 use etch_tsx::visitor::framer_motion_visitor::{AnimationConfig, FramerMotionVisitor};
 use etch_tsx::visitor::inject_callbacks_visitor::Callback;
 use etch_tsx::visitor::inject_shadcn_ui_visitor::InjectShadcnUiVisitor;
@@ -38,6 +39,7 @@ pub struct FigmaConversion {
   pub component_wrappers: HashMap<String, ComponentWrapper>, // Generic wrapper mapping
   pub action_imports: HashMap<String, HashSet<String>>,
   pub animations: HashMap<String, AnimationConfig>,
+  pub filters: HashMap<String, GlowFilterProps>
 }
 
 pub struct Project {
@@ -172,6 +174,7 @@ impl Project {
               file.data.action_imports.clone(),
             ))
             .add_visitor(FramerMotionVisitor::new(file.data.animations.clone()))
+            .add_visitor(FilterVisitor::new(file.data.filters.clone()))
             .add_visitor(InjectUuidVisitor::new(InjectUuidPolicy::KeepExisting))
             .add_visitor(NextjsVisitor::new(Runtime::Client));
 

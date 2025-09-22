@@ -79,11 +79,18 @@ impl Default for LinkOptions {
 pub fn create_link_component(trigger_element: JSXElement, options: &LinkOptions) -> JSXElement {
     let routing_lib = options.routing_library.as_ref().unwrap_or(&RoutingLibrary::NextJs);
     
-    match routing_lib {
+    let link_element = match routing_lib {
         RoutingLibrary::NextJs => create_nextjs_link(trigger_element, options),
         RoutingLibrary::Wouter => create_wouter_link(trigger_element, options),
         RoutingLibrary::ReactRouter => create_react_router_link(trigger_element, options),
         RoutingLibrary::Native => create_native_link(trigger_element, options),
+    };
+    
+    // If as_button is true, wrap the link in a Button component with asChild
+    if options.as_button {
+        create_button_wrapper(link_element, options)
+    } else {
+        link_element
     }
 }
 
@@ -434,6 +441,90 @@ fn create_native_link(trigger_element: JSXElement, options: &LinkOptions) -> JSX
             name: JSXElementName::Ident(Ident {
                 span: DUMMY_SP,
                 sym: "a".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+    }
+}
+
+fn create_button_wrapper(link_element: JSXElement, options: &LinkOptions) -> JSXElement {
+    let mut button_attrs: Vec<JSXAttrOrSpread> = Vec::new();
+    
+    // Add asChild attribute
+    button_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+        span: DUMMY_SP,
+        name: JSXAttrName::Ident(Ident {
+            span: DUMMY_SP,
+            sym: "asChild".into(),
+            optional: false,
+            ctxt: SyntaxContext::empty(),
+        }.into()),
+        value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+            span: DUMMY_SP,
+            expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Bool(Bool {
+                span: DUMMY_SP,
+                value: true,
+            })))),
+        })),
+    }));
+    
+    // Add variant attribute if specified
+    if let Some(variant) = &options.variant {
+        button_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+            span: DUMMY_SP,
+            name: JSXAttrName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "variant".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }.into()),
+            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
+                span: DUMMY_SP,
+                value: variant.clone().into(),
+                raw: None,
+            }))),
+        }));
+    }
+    
+    // Add size attribute if specified
+    if let Some(size) = &options.size {
+        button_attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+            span: DUMMY_SP,
+            name: JSXAttrName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "size".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }.into()),
+            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
+                span: DUMMY_SP,
+                value: size.clone().into(),
+                raw: None,
+            }))),
+        }));
+    }
+    
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "Button".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: button_attrs,
+            self_closing: false,
+            type_args: None,
+        },
+        children: vec![JSXElementChild::JSXElement(Box::new(link_element))],
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "Button".into(),
                 optional: false,
                 ctxt: SyntaxContext::empty(),
             }),
