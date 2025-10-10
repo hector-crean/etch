@@ -36,7 +36,7 @@ pub fn derive_import_local_name(import_path: &str, import_name: Option<&str>, al
         return name.to_string();
     }
 
-    let last_segment = import_path.split('/').last().unwrap_or("Component");
+    let last_segment = import_path.split('/').next_back().unwrap_or("Component");
 
     let stem = last_segment.split('.').next().unwrap_or(last_segment);
 

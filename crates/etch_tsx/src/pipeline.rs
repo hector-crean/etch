@@ -108,7 +108,7 @@ mod tests {
 
     impl VisitMut for TestStringReplacer {
         fn visit_mut_str(&mut self, node: &mut Str) {
-            if node.value.to_string() == "test" {
+            if node.value == "test" {
                 node.value = "REPLACED".into();
             }
         }

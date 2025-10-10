@@ -6,6 +6,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[ts(export)]
+#[derive(Default)]
 pub struct ButtonOptions {
     pub id: String,
     pub label: String,
@@ -17,16 +18,6 @@ pub struct ButtonOptions {
     pub action: Option<String>,
 }
 
-impl Default for ButtonOptions {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            label: String::new(),
-            variant: None,
-            action: None,
-        }
-    }
-}
 
 pub fn create_button_component(trigger_element: JSXElement, options: &ButtonOptions) -> JSXElement {
     let mut button_attrs: Vec<JSXAttrOrSpread> = Vec::new();

@@ -1,11 +1,5 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::collections::HashSet;
-use swc_atoms::Atom;
 use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::*;
-use swc_ecma_visit::{VisitMut, VisitMutWith};
-use ts_rs::TS;
 
 /// Creates a JSX element with dangerouslySetInnerHTML set to the provided content
 pub fn dangerous_html_node(content: String) -> JSXElement {

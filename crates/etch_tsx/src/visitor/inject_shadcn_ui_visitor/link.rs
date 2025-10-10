@@ -6,18 +6,15 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[ts(export)]
 #[serde(tag = "type")]
+#[derive(Default)]
 pub enum RoutingLibrary {
+    #[default]
     NextJs,
     Wouter,
     ReactRouter,
     Native, // Standard HTML <a> tag
 }
 
-impl Default for RoutingLibrary {
-    fn default() -> Self {
-        RoutingLibrary::NextJs
-    }
-}
 
 // Helper function to check if a boolean is false (for skipping serialization)
 fn is_false(b: &bool) -> bool {
@@ -26,6 +23,7 @@ fn is_false(b: &bool) -> bool {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[ts(export)]
+#[derive(Default)]
 pub struct LinkOptions {
     pub id: String,
     pub href: String,
@@ -58,23 +56,6 @@ pub struct LinkOptions {
     pub prefetch: bool, // For Next.js Link prefetch
 }
 
-impl Default for LinkOptions {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            href: String::new(),
-            target: None,
-            rel: None,
-            as_button: false,
-            variant: None,
-            size: None,
-            routing_library: None,
-            class_name: None,
-            replace: false,
-            prefetch: false,
-        }
-    }
-}
 
 pub fn create_link_component(trigger_element: JSXElement, options: &LinkOptions) -> JSXElement {
     let routing_lib = options.routing_library.as_ref().unwrap_or(&RoutingLibrary::NextJs);

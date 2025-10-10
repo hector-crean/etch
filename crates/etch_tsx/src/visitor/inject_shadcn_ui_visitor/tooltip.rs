@@ -5,6 +5,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[ts(export)]
+#[derive(Default)]
 pub struct TooltipOptions {
     pub id: String,
     
@@ -26,19 +27,6 @@ pub struct TooltipOptions {
     pub skip_delay_duration: Option<u32>,
 }
 
-impl Default for TooltipOptions {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            trigger_id: None,
-            content: String::new(),
-            side: None,
-            align: None,
-            delay_duration: None,
-            skip_delay_duration: None,
-        }
-    }
-}
 
 pub fn create_tooltip_component(trigger_element: JSXElement, options: &TooltipOptions) -> JSXElement {
     use swc_atoms::Atom;

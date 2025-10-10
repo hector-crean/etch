@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use swc_common::{sync::Lrc, FileName, SourceMap, DUMMY_SP};
+use swc_common::{sync::Lrc, FileName, SourceMap};
 use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, Parser as SwcParser, StringInput, Syntax, TsSyntax};
-use thiserror::Error;
 use ts_rs::TS;
 
 /// A wrapper around raw HTML content that can be parsed into JSX elements.
