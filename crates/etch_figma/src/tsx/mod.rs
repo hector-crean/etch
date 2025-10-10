@@ -2,6 +2,7 @@ pub mod figma_svg_export;
 pub mod frame;
 pub mod generator;
 pub mod paint;
+pub mod path_registry;
 pub mod shapes;
 pub mod svg_strategy;
 pub mod text;

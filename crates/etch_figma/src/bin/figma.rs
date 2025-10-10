@@ -15,20 +15,24 @@ fn process_canvas(
     // Extract ALL node components using the unified visitor
     let tsx_visitor = Walker::new(TsxVisitor::new()).walk_canvas(canvas);
 
-    // Create TSX generator for exportable components only
-    let tsx_generator = TsxGenerator::new()
-        .with_react_imports(true)
-        .with_separate_files(true)
-        .with_exportable_only(true);
-
-    // Configure output directory
+    // Configure output directory with new features
     let config = CodeGenConfig {
         output_dir: PathBuf::from("C:\\Users\\Hector.C\\typescript\\figma-make\\src\\app")
             .join(&canvas.name),
         separate_files: true,
         exportable_only: true,
         file_naming: FileNamingStrategy::ComponentName,
+        use_css_variables: true,        // Enable CSS variable theming
+        extract_svg_paths: true,         // Extract complex SVG paths
+        svg_paths_filename: "svg-paths".to_string(),
     };
+
+    // Create TSX generator with configuration
+    let tsx_generator = TsxGenerator::new()
+        .with_react_imports(true)
+        .with_separate_files(true)
+        .with_exportable_only(true)
+        .with_config(config.clone());
 
     // Get stats for logging before creating the system
     let exportable_count = tsx_visitor.exportable_root_jsx_elements_by_name().len();
@@ -79,14 +83,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = files_api::get_file(&config, file_key, None, None, None, None, None, None).await?;
 
     // Process all canvases functionally
-    let codegens: Result<Vec<_>, _> = file
+    let results: Result<Vec<_>, _> = file
         .document
         .children
         .iter()
         .map(|canvas| process_canvas(canvas))
         .collect();
 
-    let codegens = codegens?;
+    let _results = results?;
+
+    info!("Successfully processed all canvases");
 
     Ok(())
 }

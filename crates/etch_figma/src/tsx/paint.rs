@@ -113,6 +113,47 @@ pub fn fill_to_svg_attr(fills: &[Paint]) -> Option<(&'static str, String)> {
     extract_first_paint_color(fills).map(|color| ("fill", color))
 }
 
+/// Convert paint to CSS variable with fallback
+/// Format: var(--fill-N, #color)
+pub fn paint_to_css_var(paint: &Paint, var_index: usize) -> Option<String> {
+    paint_to_css(paint).map(|fallback| format!("var(--fill-{}, {})", var_index, fallback))
+}
+
+/// Extract fill properties for SVG with CSS variable support
+pub fn fill_to_svg_attr_with_var(
+    fills: &[Paint],
+    var_index: usize,
+) -> Option<(&'static str, String)> {
+    fills
+        .first()
+        .and_then(|paint| paint_to_css_var(paint, var_index).map(|value| ("fill", value)))
+}
+
+/// Extract stroke properties for SVG with CSS variable support
+pub fn stroke_to_svg_attrs_with_var(
+    strokes: &Option<Vec<Paint>>,
+    stroke_weight: Option<f64>,
+    var_index: usize,
+) -> Vec<(&'static str, String)> {
+    let mut attrs = Vec::new();
+
+    if let Some(strokes) = strokes {
+        if let Some(paint) = strokes.first() {
+            if let Some(color) = paint_to_css_var(paint, var_index) {
+                attrs.push(("stroke", color));
+            }
+        }
+    }
+
+    if let Some(weight) = stroke_weight {
+        if weight > 0.0 {
+            attrs.push(("strokeWidth", weight.to_string()));
+        }
+    }
+
+    attrs
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

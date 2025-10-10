@@ -1,6 +1,8 @@
+use super::path_registry::PathRegistry;
 use super::visitor::TsxVisitor;
-use crate::codegen_ext::{CodeGenResult, CodeGenerator};
+use crate::codegen_ext::{CodeGenConfig, CodeGenResult, CodeGenerator};
 use heck::ToPascalCase;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use swc_common::{SourceMap, sync::Lrc};
@@ -37,6 +39,10 @@ pub struct TsxGenerator {
     separate_files: bool,
     /// Whether to only generate exportable components
     exportable_only: bool,
+    /// Path registry for extracting SVG paths (uses interior mutability)
+    path_registry: RefCell<PathRegistry>,
+    /// Configuration (optional, for advanced options)
+    config: Option<CodeGenConfig>,
 }
 
 impl TsxGenerator {
@@ -45,6 +51,8 @@ impl TsxGenerator {
             include_react_imports: true,
             separate_files: true,
             exportable_only: false,
+            path_registry: RefCell::new(PathRegistry::new()),
+            config: None,
         }
     }
 
@@ -62,6 +70,36 @@ impl TsxGenerator {
         self.exportable_only = exportable_only;
         self
     }
+
+    pub fn with_config(mut self, config: CodeGenConfig) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Check if path extraction is enabled
+    fn should_extract_paths(&self) -> bool {
+        self.config
+            .as_ref()
+            .map(|c| c.extract_svg_paths)
+            .unwrap_or(true)
+    }
+
+    /// Check if CSS variables should be used
+    #[allow(dead_code)]
+    fn should_use_css_variables(&self) -> bool {
+        self.config
+            .as_ref()
+            .map(|c| c.use_css_variables)
+            .unwrap_or(false)
+    }
+
+    /// Get the SVG paths filename
+    fn svg_paths_filename(&self) -> String {
+        self.config
+            .as_ref()
+            .map(|c| c.svg_paths_filename.clone())
+            .unwrap_or_else(|| "svg-paths".to_string())
+    }
 }
 
 impl CodeGenerator<TsxVisitor> for TsxGenerator {
@@ -72,6 +110,13 @@ impl CodeGenerator<TsxVisitor> for TsxGenerator {
             self.generate_separate_files(visitor, &mut result)?;
         } else {
             self.generate_single_file(visitor, &mut result)?;
+        }
+
+        // Generate SVG paths file if any paths were registered
+        if self.should_extract_paths() && self.path_registry.borrow().has_paths() {
+            let paths_filename = format!("{}.ts", self.svg_paths_filename());
+            let paths_content = self.path_registry.borrow().generate_ts_file();
+            result.add_file(PathBuf::from(paths_filename), paths_content);
         }
 
         Ok(result)
@@ -142,8 +187,21 @@ impl TsxGenerator {
 
         // Add React imports if needed
         if self.include_react_imports {
-            content.push_str("import React from 'react';\n\n");
+            content.push_str("import React from 'react';\n");
         }
+
+        // Add SVG paths import if needed
+        if self.should_extract_paths() && self.path_registry.borrow().has_paths() {
+            let import_path = format!("./{}", self.svg_paths_filename());
+            content.push_str(
+                &self
+                    .path_registry
+                    .borrow()
+                    .get_import_statement(&import_path),
+            );
+        }
+
+        content.push_str("\n");
 
         // Generate the component function
         let component_code = self.generate_component_function(component_name, jsx_element)?;
@@ -164,8 +222,21 @@ impl TsxGenerator {
 
         // Add React imports if needed
         if self.include_react_imports {
-            content.push_str("import React from 'react';\n\n");
+            content.push_str("import React from 'react';\n");
         }
+
+        // Add SVG paths import if needed
+        if self.should_extract_paths() && self.path_registry.borrow().has_paths() {
+            let import_path = format!("./{}", self.svg_paths_filename());
+            content.push_str(
+                &self
+                    .path_registry
+                    .borrow()
+                    .get_import_statement(&import_path),
+            );
+        }
+
+        content.push_str("\n");
 
         // Generate all component functions
         let mut sanitized_names = Vec::new();

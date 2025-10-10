@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InlineObject32 {
     #[serde(rename = "rows")]
-    pub rows: Box<models::InlineObject32Rows>,
+    pub rows: String,
     /// Whether there is a next page of data that can be fetched.
     #[serde(rename = "next_page")]
     pub next_page: bool,
@@ -24,12 +24,11 @@ pub struct InlineObject32 {
 }
 
 impl InlineObject32 {
-    pub fn new(rows: models::InlineObject32Rows, next_page: bool) -> InlineObject32 {
+    pub fn new(rows: String, next_page: bool) -> InlineObject32 {
         InlineObject32 {
-            rows: Box::new(rows),
+            rows,
             next_page,
             cursor: None,
         }
     }
 }
-

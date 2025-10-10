@@ -96,15 +96,58 @@ impl FigmaSvgExporter {
     }
 
     /// Fetches SVG content from Figma API
-    async fn fetch_figma_svg(&self, _file_key: &str, _node_id: &str) -> Result<String, SvgExportError> {
-        // This would integrate with the Figma API to fetch SVG export
-        // For now, we'll simulate this with a placeholder
-        
-        // In a real implementation, this would make an HTTP request to:
+    async fn fetch_figma_svg(&self, file_key: &str, node_id: &str) -> Result<String, SvgExportError> {
+        // Use Figma's image export API
         // https://api.figma.com/v1/images/{file_key}?ids={node_id}&format=svg
         
-        // Placeholder implementation
-        Ok(format!("<svg viewBox=\"0 0 100 100\"><path d=\"M10,10 L90,90\"/></svg>"))
+        let url = format!(
+            "https://api.figma.com/v1/images/{}?ids={}&format=svg",
+            file_key, node_id
+        );
+        
+        // Get Figma API token from environment
+        let token = std::env::var("X_FIGMA_TOKEN")
+            .map_err(|_| SvgExportError::ApiError("X_FIGMA_TOKEN not set".to_string()))?;
+        
+        // Make the API request to get the SVG URL
+        let client = reqwest::Client::new();
+        let response = client
+            .get(&url)
+            .header("X-Figma-Token", token.clone())
+            .send()
+            .await
+            .map_err(|e| SvgExportError::ApiError(format!("Failed to fetch SVG URL: {}", e)))?;
+        
+        if !response.status().is_success() {
+            return Err(SvgExportError::ApiError(format!(
+                "Figma API error: {}",
+                response.status()
+            )));
+        }
+        
+        // Parse the response to get the SVG URL
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| SvgExportError::ApiError(format!("Failed to parse response: {}", e)))?;
+        
+        let svg_url = json["images"][node_id]
+            .as_str()
+            .ok_or_else(|| SvgExportError::ApiError("No SVG URL in response".to_string()))?;
+        
+        // Fetch the actual SVG content from the returned URL
+        let svg_response = client
+            .get(svg_url)
+            .send()
+            .await
+            .map_err(|e| SvgExportError::ApiError(format!("Failed to fetch SVG: {}", e)))?;
+        
+        let svg_content = svg_response
+            .text()
+            .await
+            .map_err(|e| SvgExportError::ApiError(format!("Failed to read SVG: {}", e)))?;
+        
+        Ok(svg_content)
     }
 
     /// Analyzes SVG content to determine complexity
@@ -131,11 +174,21 @@ impl FigmaSvgExporter {
 
     /// Exports SVG to external file
     async fn export_to_external_file(&mut self, svg_content: &str, node_id: &str) -> Result<SvgExportResult, SvgExportError> {
+        use std::fs;
+        use std::path::Path;
+        
         let filename = format!("{}.svg", node_id);
         let file_path = format!("{}/{}", self.config.external_path_base, filename);
         
-        // In a real implementation, this would write to the filesystem
-        // For now, we'll just track the path
+        // Create directory if it doesn't exist
+        if let Some(parent) = Path::new(&file_path).parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| SvgExportError::FileError(format!("Failed to create directory: {}", e)))?;
+        }
+        
+        // Write SVG content to file
+        fs::write(&file_path, svg_content)
+            .map_err(|e| SvgExportError::FileError(format!("Failed to write SVG file: {}", e)))?;
         
         self.external_paths.insert(node_id.to_string(), file_path.clone());
         

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::fs;
 use crate::walker::NodeVisitor;
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Generic code generation result containing file paths and their contents
 #[derive(Debug, Clone)]
@@ -19,27 +19,27 @@ impl CodeGenResult {
             metadata: HashMap::new(),
         }
     }
-    
+
     /// Add a file to the result
     pub fn add_file(&mut self, path: PathBuf, content: String) {
         self.files.insert(path, content);
     }
-    
+
     /// Add metadata
     pub fn add_metadata(&mut self, key: String, value: String) {
         self.metadata.insert(key, value);
     }
-    
+
     /// Write all files to the filesystem
     pub fn write_to_filesystem(&self, base_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         for (file_path, content) in &self.files {
             let full_path = base_path.join(file_path);
-            
+
             // Create parent directories if they don't exist
             if let Some(parent) = full_path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            
+
             fs::write(&full_path, content)?;
         }
         Ok(())
@@ -51,10 +51,10 @@ impl CodeGenResult {
 pub trait CodeGenerator<V: NodeVisitor> {
     /// Generate code from a visitor's results
     fn generate(&self, visitor: &V) -> Result<CodeGenResult, Box<dyn std::error::Error>>;
-    
+
     /// Get the file extension for this generator
     fn file_extension(&self) -> &str;
-    
+
     /// Get the default output directory name for this generator
     fn output_directory(&self) -> &str;
 }
@@ -70,6 +70,12 @@ pub struct CodeGenConfig {
     pub exportable_only: bool,
     /// Custom file naming strategy
     pub file_naming: FileNamingStrategy,
+    /// Whether to use CSS variables for theming
+    pub use_css_variables: bool,
+    /// Whether to extract complex SVG paths to external file
+    pub extract_svg_paths: bool,
+    /// Name of the SVG paths file (without extension)
+    pub svg_paths_filename: String,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +95,9 @@ impl Default for CodeGenConfig {
             separate_files: true,
             exportable_only: false,
             file_naming: FileNamingStrategy::ComponentName,
+            use_css_variables: false,
+            extract_svg_paths: true,
+            svg_paths_filename: "svg-paths".to_string(),
         }
     }
 }
@@ -108,14 +117,14 @@ impl<V: NodeVisitor, G: CodeGenerator<V>> CodeGenSystem<V, G> {
             config,
         }
     }
-    
+
     /// Generate code and write to filesystem
     pub fn generate_and_write(&self) -> Result<CodeGenResult, Box<dyn std::error::Error>> {
         let result = self.generator.generate(&self.visitor)?;
         result.write_to_filesystem(&self.config.output_dir)?;
         Ok(result)
     }
-    
+
     /// Generate code without writing to filesystem
     pub fn generate(&self) -> Result<CodeGenResult, Box<dyn std::error::Error>> {
         self.generator.generate(&self.visitor)

@@ -21,3 +21,4 @@ swc_ecma_ast = { workspace = true }
 swc_ecma_codegen = { workspace = true }
 swc_atoms = { workspace = true }
 heck = "0.5"
+sha2 = "0.10"
