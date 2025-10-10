@@ -1,25 +1,20 @@
-pub mod visitor;
+pub mod figma_svg_export;
+pub mod frame;
 pub mod generator;
+pub mod paint;
+pub mod shapes;
+pub mod svg_strategy;
 pub mod text;
 pub mod vector;
-pub mod frame;
-pub mod svg_strategy;
-pub mod figma_svg_export;
+pub mod visitor;
 
-
-use figma_api::models::{
-    FrameNode, TextNode, RectangleNode, 
-    GroupNode
-};
+use figma_api::models::{FrameNode, GroupNode, RectangleNode, TextNode};
 use swc_ecma_ast::JSXElement;
-
-
 
 /// JSX-specific conversion traits
 pub trait ToJsx {
     fn to_jsx(&self) -> JSXElement;
 }
-
 
 // JSX implementations for major node types
 impl ToJsx for FrameNode {
@@ -27,14 +22,14 @@ impl ToJsx for FrameNode {
         use crate::tailwind_ext::TailwindStyleExt;
         use swc_common::{DUMMY_SP, SyntaxContext};
         use swc_ecma_ast::{
-            JSXOpeningElement, JSXClosingElement, JSXElementName, JSXAttr, JSXAttrName,
-            JSXAttrValue, JSXExpr, JSXExprContainer, JSXAttrOrSpread, IdentName, Ident, Str, Expr, Lit, 
-            ObjectLit, PropOrSpread, Prop, KeyValueProp, PropName
+            Expr, Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
+            JSXClosingElement, JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement,
+            KeyValueProp, Lit, ObjectLit, Prop, PropName, PropOrSpread, Str,
         };
 
         let styles = self.to_tailwind();
         let mut attrs = Vec::new();
-        
+
         // Add className attribute
         if !styles.classes.is_empty() {
             attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
@@ -50,7 +45,7 @@ impl ToJsx for FrameNode {
                 }))),
             }));
         }
-        
+
         // Add data-name attribute
         attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
             span: DUMMY_SP,
@@ -64,7 +59,7 @@ impl ToJsx for FrameNode {
                 raw: None,
             }))),
         }));
-        
+
         // Add data-node-id attribute for debugging/reference
         attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
             span: DUMMY_SP,
@@ -78,10 +73,12 @@ impl ToJsx for FrameNode {
                 raw: None,
             }))),
         }));
-        
+
         // Add style attribute if there are inline styles
         if !styles.inline_styles.is_empty() {
-            let style_props: Vec<PropOrSpread> = styles.inline_styles.iter()
+            let style_props: Vec<PropOrSpread> = styles
+                .inline_styles
+                .iter()
                 .map(|(key, value)| {
                     PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key: PropName::Str(Str {
@@ -97,7 +94,7 @@ impl ToJsx for FrameNode {
                     })))
                 })
                 .collect();
-                
+
             attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                 span: DUMMY_SP,
                 name: JSXAttrName::Ident(IdentName {
@@ -113,7 +110,7 @@ impl ToJsx for FrameNode {
                 })),
             }));
         }
-        
+
         JSXElement {
             span: DUMMY_SP,
             opening: JSXOpeningElement {
@@ -154,60 +151,9 @@ impl ToJsx for TextNode {
 
 impl ToJsx for RectangleNode {
     fn to_jsx(&self) -> JSXElement {
-        // Create a simple rectangle SVG element
-        use swc_common::{DUMMY_SP, SyntaxContext};
-        use swc_ecma_ast::{
-            JSXOpeningElement, JSXClosingElement, JSXElementName, JSXAttr, JSXAttrName,
-            JSXAttrValue, JSXAttrOrSpread, IdentName, Ident, Str, Lit
-        };
-
-        let mut attrs = Vec::new();
-        
-        // Add data-name attribute
-        attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-            span: DUMMY_SP,
-            name: JSXAttrName::Ident(IdentName {
-                span: DUMMY_SP,
-                sym: "data-name".into(),
-            }),
-            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                span: DUMMY_SP,
-                value: self.name.clone().into(),
-                raw: None,
-            }))),
-        }));
-        
-        // Add data-rectangle attribute
-        attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-            span: DUMMY_SP,
-            name: JSXAttrName::Ident(IdentName {
-                span: DUMMY_SP,
-                sym: "data-rectangle".into(),
-            }),
-            value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-                span: DUMMY_SP,
-                value: "true".into(),
-                raw: None,
-            }))),
-        }));
-        
-        JSXElement {
-            span: DUMMY_SP,
-            opening: JSXOpeningElement {
-                span: DUMMY_SP,
-                name: JSXElementName::Ident(Ident {
-                    span: DUMMY_SP,
-                    sym: "rect".into(),
-                    optional: false,
-                    ctxt: SyntaxContext::empty(),
-                }),
-                attrs,
-                self_closing: true,
-                type_args: None,
-            },
-            closing: None,
-            children: vec![],
-        }
+        // Use the shapes module for proper SVG generation
+        use crate::tsx::shapes::rectangle_to_svg_jsx;
+        rectangle_to_svg_jsx(self)
     }
 }
 
@@ -215,12 +161,12 @@ impl ToJsx for GroupNode {
     fn to_jsx(&self) -> JSXElement {
         use swc_common::{DUMMY_SP, SyntaxContext};
         use swc_ecma_ast::{
-            JSXOpeningElement, JSXClosingElement, JSXElementName, JSXAttr, JSXAttrName,
-            JSXAttrValue, JSXAttrOrSpread, IdentName, Ident, Str, Lit
+            Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue,
+            JSXClosingElement, JSXElementName, JSXOpeningElement, Lit, Str,
         };
 
         let mut attrs = Vec::new();
-        
+
         // Groups are typically containers
         attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
             span: DUMMY_SP,
@@ -234,7 +180,7 @@ impl ToJsx for GroupNode {
                 raw: None,
             }))),
         }));
-        
+
         attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
             span: DUMMY_SP,
             name: JSXAttrName::Ident(IdentName {
@@ -247,7 +193,7 @@ impl ToJsx for GroupNode {
                 raw: None,
             }))),
         }));
-        
+
         JSXElement {
             span: DUMMY_SP,
             opening: JSXOpeningElement {
@@ -275,4 +221,3 @@ impl ToJsx for GroupNode {
         }
     }
 }
-

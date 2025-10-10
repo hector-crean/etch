@@ -15,8 +15,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
-figma-api = { version = "0.31.3"}
+figma-api = { path = "../figma-api-rust/figma_rest_api_file" }
 swc_common = { workspace = true }
 swc_ecma_ast = { workspace = true }
 swc_ecma_codegen = { workspace = true }
 swc_atoms = { workspace = true }
+heck = "0.5"

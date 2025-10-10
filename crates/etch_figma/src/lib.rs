@@ -1,18 +1,19 @@
-pub mod tsx;
 pub mod html;
+pub mod tsx;
 
-pub mod walker;
-pub mod tailwind_ext;
 pub mod codegen_ext;
-
+pub mod tailwind_ext;
+pub mod walker;
 
 // Re-export the extension traits
+pub use codegen_ext::{
+    CodeGenConfig, CodeGenResult, CodeGenSystem, CodeGenerator, FileNamingStrategy,
+};
 pub use tailwind_ext::{TailwindStyleExt, TailwindStyles};
-pub use codegen_ext::{CodeGenerator, CodeGenResult, CodeGenConfig, CodeGenSystem, FileNamingStrategy};
 
 // Re-export generators
-pub use tsx::generator::TsxGenerator;
 pub use html::generator::HtmlGenerator;
+pub use tsx::generator::TsxGenerator;
 
 use figma_api::models::SubcanvasNode;
 
@@ -20,18 +21,19 @@ use figma_api::models::SubcanvasNode;
 pub trait SubcanvasNodeExt {
     /// Get the ID of the node, if it has one
     fn id(&self) -> Option<&str>;
-    
+
     /// Get the name of the node, if it has one
     fn name(&self) -> Option<&str>;
-    
+
     /// Get the children of the node, if it has any
     fn children(&self) -> Option<&Vec<SubcanvasNode>>;
-    
+
     /// Check if the node has children
     fn has_children(&self) -> bool {
-        self.children().map_or(false, |children| !children.is_empty())
+        self.children()
+            .map_or(false, |children| !children.is_empty())
     }
-    
+
     /// Get the node type as a string for debugging/logging
     fn node_type(&self) -> &'static str;
 }
@@ -102,7 +104,7 @@ impl SubcanvasNodeExt for SubcanvasNode {
             _ => None,
         }
     }
-    
+
     fn node_type(&self) -> &'static str {
         match self {
             SubcanvasNode::BooleanOperation(_) => "BooleanOperation",
@@ -134,4 +136,3 @@ impl SubcanvasNodeExt for SubcanvasNode {
         }
     }
 }
-
