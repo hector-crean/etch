@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | **String** | The name of the file as it appears in the editor. | 
-**role** | **String** | The role of the user making the API request in relation to the file. | 
+**role** | [**models::Role**](Role.md) | The role of the user making the API request in relation to the file. | 
 **last_modified** | **String** | The UTC ISO 8601 time at which the file was last modified. | 
 **editor_type** | **String** | The type of editor associated with this file. | 
 **thumbnail_url** | Option<**String**> | A URL to a thumbnail image of the file. | [optional]

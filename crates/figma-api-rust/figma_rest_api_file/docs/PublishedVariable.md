@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **name** | **String** | The name of this variable. | 
 **key** | **String** | The key of this variable. | 
 **variable_collection_id** | **String** | The id of the variable collection that contains this variable. | 
-**resolved_data_type** | **String** | The resolved type of the variable. | 
+**resolved_data_type** | [**models::VariableResolvedDataType**](VariableResolvedDataType.md) | The resolved type of the variable. | 
 **updated_at** | **String** | The UTC ISO 8601 time at which the variable was last updated. | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

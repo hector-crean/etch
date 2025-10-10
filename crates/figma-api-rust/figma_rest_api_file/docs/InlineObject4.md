@@ -11,8 +11,8 @@ Name | Type | Description | Notes
 **last_touched_by** | Option<[**models::User**](User.md)> | The user who last modified the file contents. | [optional]
 **thumbnail_url** | Option<**String**> | A URL to a thumbnail image of the file. | [optional]
 **editor_type** | **String** | The type of editor associated with this file. | 
-**role** | Option<**String**> | The role of the user making the API request in relation to the file. | [optional]
-**link_access** | Option<**String**> | Access policy for users who have the link to the file. | [optional]
+**role** | Option<[**models::Role**](Role.md)> | The role of the user making the API request in relation to the file. | [optional]
+**link_access** | Option<[**models::LinkAccess**](LinkAccess.md)> | Access policy for users who have the link to the file. | [optional]
 **url** | Option<**String**> | The URL of the file. | [optional]
 **version** | Option<**String**> | The version number of the file. This number is incremented when a file is modified and can be used to check if the file has changed between requests. | [optional]
 

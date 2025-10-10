@@ -4,8 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | **f64** | Status code | 
-**err** | **String** | A string describing the error | 
+**status** | **f64** | The response status code. | 
+**error** | **bool** | For successful requests, this value is always `false`. | 
+**meta** | [**models::PaymentInformation**](PaymentInformation.md) |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

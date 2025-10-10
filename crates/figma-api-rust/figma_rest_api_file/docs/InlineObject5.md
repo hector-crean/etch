@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**versions** | [**Vec<models::Version>**](Version.md) | An array of versions. | 
-**pagination** | [**models::ResponsePagination**](ResponsePagination.md) |  | 
+**name** | **String** | The team's name. | 
+**projects** | [**Vec<models::Project>**](Project.md) | An array of projects. | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

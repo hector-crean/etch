@@ -111,7 +111,6 @@ impl From<&str> for ContentType {
     }
 }
 
-pub mod component_sets_api;
 pub mod components_api;
 pub mod files_api;
 pub mod styles_api;

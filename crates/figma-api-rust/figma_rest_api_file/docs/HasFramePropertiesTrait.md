@@ -23,7 +23,7 @@ Name | Type | Description | Notes
 **strokes_included_in_layout** | Option<**bool**> | Determines whether strokes are included in layout calculations. When true, auto-layout frames behave like css \"box-sizing: border-box\". This property is only applicable for auto-layout frames. | [optional][default to false]
 **layout_wrap** | Option<**String**> | Whether this auto-layout frame has wrapping enabled. | [optional]
 **counter_axis_spacing** | Option<**f64**> | The distance between wrapped tracks of an auto-layout frame. This property is only applicable for auto-layout frames with `layoutWrap: \"WRAP\"` | [optional]
-**counter_axis_align_content** | Option<**String**> | Determines how the auto-layout frame’s wrapped tracks should be aligned in the counter axis direction. This property is only applicable for auto-layout frames with `layoutWrap: \"WRAP\"`. | [optional][default to Auto]
+**counter_axis_align_content** | Option<**String**> | Determines how the auto-layout frame�s wrapped tracks should be aligned in the counter axis direction. This property is only applicable for auto-layout frames with `layoutWrap: \"WRAP\"`. | [optional][default to Auto]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

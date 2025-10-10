@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**status** | **f64** | The response status code. | 
+**status** | **f64** | The status of the request. | 
 **error** | **bool** | For successful requests, this value is always `false`. | 
 **meta** | [**models::InlineObject15Meta**](inline_object_15_meta.md) |  | 
 

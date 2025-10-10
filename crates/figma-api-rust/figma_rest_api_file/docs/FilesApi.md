@@ -5,10 +5,8 @@ All URIs are relative to *https://api.figma.com*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**get_file**](FilesApi.md#get_file) | **GET** /v1/files/{file_key} | Get file JSON
-[**get_file_meta**](FilesApi.md#get_file_meta) | **GET** /v1/files/{file_key}/meta | Get file metadata
 [**get_file_nodes**](FilesApi.md#get_file_nodes) | **GET** /v1/files/{file_key}/nodes | Get file JSON for specific nodes
 [**get_image_fills**](FilesApi.md#get_image_fills) | **GET** /v1/files/{file_key}/images | Get image fills
-[**get_images**](FilesApi.md#get_images) | **GET** /v1/images/{file_key} | Render images of file nodes
 
 
 
@@ -35,36 +33,6 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::InlineObject**](inline_object.md)
-
-### Authorization
-
-[OAuth2](../README.md#OAuth2), [PersonalAccessToken](../README.md#PersonalAccessToken)
-
-### HTTP request headers
-
-- **Content-Type**: Not defined
-- **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-
-## get_file_meta
-
-> models::InlineObject4 get_file_meta(file_key)
-Get file metadata
-
-Get file metadata
-
-### Parameters
-
-
-Name | Type | Description  | Required | Notes
-------------- | ------------- | ------------- | ------------- | -------------
-**file_key** | **String** | File to get metadata for. This can be a file key or branch key. Use `GET /v1/files/:key` with the `branch_data` query param to get the branch key. | [required] |
-
-### Return type
-
-[**models::InlineObject4**](inline_object_4.md)
 
 ### Authorization
 
@@ -130,46 +98,6 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::InlineObject3**](inline_object_3.md)
-
-### Authorization
-
-[OAuth2](../README.md#OAuth2), [PersonalAccessToken](../README.md#PersonalAccessToken)
-
-### HTTP request headers
-
-- **Content-Type**: Not defined
-- **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-
-## get_images
-
-> models::InlineObject2 get_images(file_key, ids, version, scale, format, svg_outline_text, svg_include_id, svg_include_node_id, svg_simplify_stroke, contents_only, use_absolute_bounds)
-Render images of file nodes
-
-Renders images from a file.  If no error occurs, `\"images\"` will be populated with a map from node IDs to URLs of the rendered images, and `\"status\"` will be omitted. The image assets will expire after 30 days. Images up to 32 megapixels can be exported. Any images that are larger will be scaled down.  Important: the image map may contain values that are `null`. This indicates that rendering of that specific node has failed. This may be due to the node id not existing, or other reasons such has the node having no renderable components. It is guaranteed that any node that was requested for rendering will be represented in this map whether or not the render succeeded.  To render multiple images from the same file, use the `ids` query parameter to specify multiple node ids.  ``` GET /v1/images/:key?ids=1:2,1:3,1:4 ``` 
-
-### Parameters
-
-
-Name | Type | Description  | Required | Notes
-------------- | ------------- | ------------- | ------------- | -------------
-**file_key** | **String** | File to export images from. This can be a file key or branch key. Use `GET /v1/files/:key` with the `branch_data` query param to get the branch key. | [required] |
-**ids** | **String** | A comma separated list of node IDs to render. | [required] |
-**version** | Option<**String**> | A specific version ID to get. Omitting this will get the current version of the file. |  |
-**scale** | Option<**f64**> | A number between 0.01 and 4, the image scaling factor. |  |
-**format** | Option<**String**> | A string enum for the image output format. |  |[default to png]
-**svg_outline_text** | Option<**bool**> | Whether text elements are rendered as outlines (vector paths) or as `<text>` elements in SVGs.  Rendering text elements as outlines guarantees that the text looks exactly the same in the SVG as it does in the browser/inside Figma.  Exporting as `<text>` allows text to be selectable inside SVGs and generally makes the SVG easier to read. However, this relies on the browser's rendering engine which can vary between browsers and/or operating systems. As such, visual accuracy is not guaranteed as the result could look different than in Figma. |  |[default to true]
-**svg_include_id** | Option<**bool**> | Whether to include id attributes for all SVG elements. Adds the layer name to the `id` attribute of an svg element. |  |[default to false]
-**svg_include_node_id** | Option<**bool**> | Whether to include node id attributes for all SVG elements. Adds the node id to a `data-node-id` attribute of an svg element. |  |[default to false]
-**svg_simplify_stroke** | Option<**bool**> | Whether to simplify inside/outside strokes and use stroke attribute if possible instead of `<mask>`. |  |[default to true]
-**contents_only** | Option<**bool**> | Whether content that overlaps the node should be excluded from rendering. Passing false (i.e., rendering overlaps) may increase processing time, since more of the document must be included in rendering. |  |[default to true]
-**use_absolute_bounds** | Option<**bool**> | Use the full dimensions of the node regardless of whether or not it is cropped or the space around it is empty. Use this to export text nodes without cropping. |  |[default to false]
-
-### Return type
-
-[**models::InlineObject2**](inline_object_2.md)
 
 ### Authorization
 
