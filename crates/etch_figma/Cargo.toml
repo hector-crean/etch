@@ -19,3 +19,4 @@ figma-api = { version = "0.31.3"}
 swc_common = { workspace = true }
 swc_ecma_ast = { workspace = true }
 swc_ecma_codegen = { workspace = true }
+swc_atoms = { workspace = true }
