@@ -1,5 +1,6 @@
 [workspace]
 members = ["cli", "crates/*"]
+exclude = []
 resolver = "2"
 edition = "2024"
 
