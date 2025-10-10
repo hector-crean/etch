@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Figma API
-  version: 0.31.0
+  version: 0.34.0
   description: |-
     This is the OpenAPI specification for the [Figma REST API](https://www.figma.com/developers/api).
 
@@ -254,130 +254,6 @@ paths:
           $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
         "500":
           $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-  /v1/images/{file_key}:
-    get:
-      tags:
-      - Files
-      summary: Render images of file nodes
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - file_content:read
-        - files:read
-      description: |
-        Renders images from a file.
-
-        If no error occurs, `"images"` will be populated with a map from node IDs to URLs of the rendered images, and `"status"` will be omitted. The image assets will expire after 30 days. Images up to 32 megapixels can be exported. Any images that are larger will be scaled down.
-
-        Important: the image map may contain values that are `null`. This indicates that rendering of that specific node has failed. This may be due to the node id not existing, or other reasons such has the node having no renderable components. It is guaranteed that any node that was requested for rendering will be represented in this map whether or not the render succeeded.
-
-        To render multiple images from the same file, use the `ids` query parameter to specify multiple node ids.
-
-        ```
-        GET /v1/images/:key?ids=1:2,1:3,1:4
-        ```
-      operationId: getImages
-      parameters:
-      - name: file_key
-        in: path
-        description: File to export images from. This can be a file key or 
-          branch key. Use `GET /v1/files/:key` with the `branch_data` query 
-          param to get the branch key.
-        required: true
-        schema:
-          type: string
-      - name: ids
-        in: query
-        description: A comma separated list of node IDs to render.
-        required: true
-        schema:
-          type: string
-      - name: version
-        in: query
-        description: A specific version ID to get. Omitting this will get the 
-          current version of the file.
-        schema:
-          type: string
-      - name: scale
-        in: query
-        description: A number between 0.01 and 4, the image scaling factor.
-        schema:
-          type: number
-          minimum: 0.01
-          maximum: 4
-      - name: format
-        in: query
-        description: A string enum for the image output format.
-        schema:
-          type: string
-          enum:
-          - jpg
-          - png
-          - svg
-          - pdf
-          default: png
-      - name: svg_outline_text
-        in: query
-        description: |-
-          Whether text elements are rendered as outlines (vector paths) or as `<text>` elements in SVGs.
-
-          Rendering text elements as outlines guarantees that the text looks exactly the same in the SVG as it does in the browser/inside Figma.
-
-          Exporting as `<text>` allows text to be selectable inside SVGs and generally makes the SVG easier to read. However, this relies on the browser's rendering engine which can vary between browsers and/or operating systems. As such, visual accuracy is not guaranteed as the result could look different than in Figma.
-        schema:
-          type: boolean
-          default: true
-      - name: svg_include_id
-        in: query
-        description: Whether to include id attributes for all SVG elements. Adds
-          the layer name to the `id` attribute of an svg element.
-        schema:
-          type: boolean
-          default: false
-      - name: svg_include_node_id
-        in: query
-        description: Whether to include node id attributes for all SVG elements.
-          Adds the node id to a `data-node-id` attribute of an svg element.
-        schema:
-          type: boolean
-          default: false
-      - name: svg_simplify_stroke
-        in: query
-        description: Whether to simplify inside/outside strokes and use stroke 
-          attribute if possible instead of `<mask>`.
-        schema:
-          type: boolean
-          default: true
-      - name: contents_only
-        in: query
-        description: Whether content that overlaps the node should be excluded 
-          from rendering. Passing false (i.e., rendering overlaps) may increase 
-          processing time, since more of the document must be included in 
-          rendering.
-        schema:
-          type: boolean
-          default: true
-      - name: use_absolute_bounds
-        in: query
-        description: Use the full dimensions of the node regardless of whether 
-          or not it is cropped or the space around it is empty. Use this to 
-          export text nodes without cropping.
-        schema:
-          type: boolean
-          default: false
-      responses:
-        "200":
-          $ref: "#/components/responses/GetImagesResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrMessage"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
   /v1/files/{file_key}/images:
     get:
       tags:
@@ -415,74 +291,6 @@ paths:
           $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
         "500":
           $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-  /v1/files/{file_key}/meta:
-    get:
-      tags:
-      - Files
-      summary: Get file metadata
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - file_metadata:read
-        - files:read
-      description: Get file metadata
-      operationId: getFileMeta
-      parameters:
-      - name: file_key
-        in: path
-        description: File to get metadata for. This can be a file key or branch 
-          key. Use `GET /v1/files/:key` with the `branch_data` query param to 
-          get the branch key.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/GetFileMetaResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrMessage"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-
-  /v1/files/{file_key}/components:
-    get:
-      tags:
-      - Components
-      summary: Get file components
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - library_content:read
-        - files:read
-      description: Get a list of published components within a file library.
-      operationId: getFileComponents
-      parameters:
-      - name: file_key
-        in: path
-        description: File to list components from. This must be a main file key,
-          not a branch key, as it is not possible to publish from branches.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/GetFileComponentsResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrorBoolean"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
   /v1/components/{key}:
     get:
       tags:
@@ -505,105 +313,6 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/GetComponentResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrorBoolean"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-
-  /v1/files/{file_key}/component_sets:
-    get:
-      tags:
-      - Component Sets
-      summary: Get file component sets
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - library_content:read
-        - files:read
-      description: Get a list of published component sets within a file library.
-      operationId: getFileComponentSets
-      parameters:
-      - name: file_key
-        in: path
-        description: File to list component sets from. This must be a main file 
-          key, not a branch key, as it is not possible to publish from branches.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/GetFileComponentSetsResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrorBoolean"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-  /v1/component_sets/{key}:
-    get:
-      tags:
-      - Component Sets
-      summary: Get component set
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - library_assets:read
-        - files:read
-      description: Get metadata on a published component set by key.
-      operationId: getComponentSet
-      parameters:
-      - name: key
-        in: path
-        description: The unique identifier of the component set.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/GetComponentSetResponse"
-        "400":
-          $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
-        "403":
-          $ref: "#/components/responses/ForbiddenErrorResponseWithErrMessage"
-        "404":
-          $ref: "#/components/responses/NotFoundErrorResponseWithErrorBoolean"
-        "429":
-          $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
-        "500":
-          $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-  /v1/files/{file_key}/styles:
-    get:
-      tags:
-      - Styles
-      summary: Get file styles
-      security:
-      - PersonalAccessToken: []
-      - OAuth2:
-        - library_content:read
-        - files:read
-      description: Get a list of published styles within a file library.
-      operationId: getFileStyles
-      parameters:
-      - name: file_key
-        in: path
-        description: File to list styles from. This must be a main file key, not
-          a branch key, as it is not possible to publish from branches.
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/GetFileStylesResponse"
         "400":
           $ref: "#/components/responses/BadRequestErrorResponseWithErrMessage"
         "403":
@@ -646,7 +355,6 @@ paths:
           $ref: "#/components/responses/TooManyRequestsErrorResponseWithErrMessage"
         "500":
           $ref: "#/components/responses/InternalServerErrorResponseWithErrMessage"
-
 components:
   securitySchemes:
     PersonalAccessToken:
@@ -1002,6 +710,76 @@ components:
           - FIXED
           - HUG
           - FILL
+        gridRowCount:
+          type: number
+          description: 'The number of rows in the grid layout. This property is only
+            applicable for auto-layout frames with `layoutMode: "GRID"`.'
+        gridColumnCount:
+          type: number
+          description: 'The number of columns in the grid layout. This property is
+            only applicable for auto-layout frames with `layoutMode: "GRID"`.'
+        gridRowGap:
+          type: number
+          description: 'The distance between rows in the grid layout. This property
+            is only applicable for auto-layout frames with `layoutMode: "GRID"`.'
+          default: 0
+        gridColumnGap:
+          type: number
+          description: 'The distance between columns in the grid layout. This property
+            is only applicable for auto-layout frames with `layoutMode: "GRID"`.'
+          default: 0
+        gridColumnsSizing:
+          type: string
+          description: 'The string for the CSS grid-template-columns property. This
+            property is only applicable for auto-layout frames with `layoutMode: "GRID"`.'
+        gridRowsSizing:
+          type: string
+          description: 'The string for the CSS grid-template-rows property. This property
+            is only applicable for auto-layout frames with `layoutMode: "GRID"`.'
+        gridChildHorizontalAlign:
+          type: string
+          description: "Determines how a GRID frame's child should be aligned in the
+            horizontal direction within its grid area. This property is only applicable
+            for direct children of frames with `layoutMode: \"GRID\"`."
+          enum:
+          - AUTO
+          - MIN
+          - CENTER
+          - MAX
+        gridChildVerticalAlign:
+          type: string
+          description: "Determines how a GRID frame's child should be aligned in the
+            vertical direction within its grid area. This property is only applicable
+            for direct children of frames with `layoutMode: \"GRID\"`."
+          enum:
+          - AUTO
+          - MIN
+          - CENTER
+          - MAX
+        gridRowSpan:
+          type: number
+          description: "The number of rows that a GRID frame's child should span.
+            This property is only applicable for direct children of frames with `layoutMode:
+            \"GRID\"`."
+          default: 1
+        gridColumnSpan:
+          type: number
+          description: "The number of columns that a GRID frame's child should span.
+            This property is only applicable for direct children of frames with `layoutMode:
+            \"GRID\"`."
+          default: 1
+        gridRowAnchorIndex:
+          type: number
+          description: "The index of the row that a GRID frame's child should be anchored
+            to. This property is only applicable for direct children of frames with
+            `layoutMode: \"GRID\"`."
+          default: 0
+        gridColumnAnchorIndex:
+          type: number
+          description: "The index of the column that a GRID frame's child should be
+            anchored to. This property is only applicable for direct children of frames
+            with `layoutMode: \"GRID\"`."
+          default: 0
       required:
       - absoluteBoundingBox
       - absoluteRenderBounds
@@ -1050,6 +828,7 @@ components:
           - NONE
           - HORIZONTAL
           - VERTICAL
+          - GRID
           default: NONE
         primaryAxisSizingMode:
           type: string
@@ -1142,7 +921,7 @@ components:
             "WRAP"`'
         counterAxisAlignContent:
           type: string
-          description: 'Determines how the auto-layout frameâ€™s wrapped tracks should
+          description: 'Determines how the auto-layout frame’s wrapped tracks should
             be aligned in the counter axis direction. This property is only applicable
             for auto-layout frames with `layoutWrap: "WRAP"`.'
           enum:
@@ -1472,6 +1251,26 @@ components:
           $ref: "#/components/schemas/EasingType"
           description: The easing curve used in the prototyping transition on 
             this node.
+    DevStatusTrait:
+      type: object
+      properties:
+        devStatus:
+          type: object
+          description: Represents whether or not a node has a particular handoff
+            (or dev) status applied to it.
+          properties:
+            type:
+              type: string
+              enum:
+              - NONE
+              - READY_FOR_DEV
+              - COMPLETED
+            description:
+              type: string
+              description: An optional field where the designer can add more 
+                information about the design and what has changed.
+          required:
+          - type
     AnnotationsTrait:
       type: object
       properties: {}
@@ -1489,6 +1288,7 @@ components:
       - $ref: "#/components/schemas/HasMaskTrait"
       - $ref: "#/components/schemas/TransitionSourceTrait"
       - $ref: "#/components/schemas/IndividualStrokesTrait"
+      - $ref: "#/components/schemas/DevStatusTrait"
       - $ref: "#/components/schemas/AnnotationsTrait"
     DefaultShapeTraits:
       allOf:
@@ -1723,6 +1523,7 @@ components:
       - $ref: "#/components/schemas/HasGeometryTrait"
       - $ref: "#/components/schemas/HasChildrenTrait"
       - $ref: "#/components/schemas/HasLayoutTrait"
+      - $ref: "#/components/schemas/DevStatusTrait"
     FrameNode:
       allOf:
       - type: object
@@ -2262,7 +2063,7 @@ components:
         - The y axis (t[0][1], t[1][1])
         - The translation offset (t[0][2], t[1][2])
 
-        The most common usage of the Transform matrix is the `relativeTransform property`. This particular usage of the matrix has a few additional restrictions. The translation offset can take on any value but we do enforce that the axis vectors are unit vectors (i.e. have length 1). The axes are not required to be at 90Â° angles to each other.
+        The most common usage of the Transform matrix is the `relativeTransform property`. This particular usage of the matrix has a few additional restrictions. The translation offset can take on any value but we do enforce that the axis vectors are unit vectors (i.e. have length 1). The axes are not required to be at 90° angles to each other.
     ImageFilters:
       type: object
       description: Image filters to apply to the node.
@@ -2986,7 +2787,7 @@ components:
       - windingRule
     ArcData:
       type: object
-      description: Information about the arc properties of an ellipse. 0Â° is the
+      description: Information about the arc properties of an ellipse. 0° is the
         x axis and increasing angles rotate clockwise.
       properties:
         startingAngle:
@@ -3057,6 +2858,7 @@ components:
           description: Text casing applied to the node, default is the original 
             casing.
           enum:
+          - ORIGINAL
           - UPPER
           - LOWER
           - TITLE
@@ -3139,7 +2941,7 @@ components:
             type: string
             description: Dimensions along which text will auto resize, default 
               is that the text does not auto-resize. TRUNCATE means that the 
-              text will be shortened and trailing text will be replaced with "â€¦"
+              text will be shortened and trailing text will be replaced with "…"
               if the text contents is larger than the bounds. `TRUNCATE` as a 
               return value is deprecated and will be removed in a future 
               version. Read from `textTruncation` instead.
@@ -3397,6 +3199,7 @@ components:
       enum:
       - STRAIGHT
       - ELBOWED
+      - CURVED
     ConnectorTextBackground:
       allOf:
       - $ref: "#/components/schemas/CornerTrait"
@@ -4498,7 +4301,20 @@ components:
       - updated_at
       - user
       - sort_position
-
+    Project:
+      type: object
+      description: A Project can be identified by both the Project name, and the
+        Project ID.
+      properties:
+        id:
+          type: string
+          description: The ID of the project.
+        name:
+          type: string
+          description: The name of the project.
+      required:
+      - id
+      - name
     Version:
       type: object
       description: A version of a file
@@ -4532,7 +4348,152 @@ components:
       - label
       - description
       - user
-
+    WebhookV2:
+      type: object
+      description: A description of an HTTP webhook (from Figma back to your 
+        application)
+      properties:
+        id:
+          type: string
+          description: The ID of the webhook
+        event_type:
+          $ref: "#/components/schemas/WebhookV2Event"
+          description: The event this webhook triggers on
+        team_id:
+          type: string
+          description: The team id you are subscribed to for updates. This is 
+            deprecated, use context and context_id instead
+          deprecated: true
+        context:
+          type: string
+          description: The type of context this webhook is attached to. The 
+            value will be "PROJECT", "TEAM", or "FILE"
+        context_id:
+          type: string
+          description: The ID of the context this webhook is attached to
+        plan_api_id:
+          type: string
+          description: The plan API ID of the team or organization where this 
+            webhook was created
+        status:
+          $ref: "#/components/schemas/WebhookV2Status"
+          description: The current status of the webhook
+        client_id:
+          type:
+          - string
+          - "null"
+          description: The client ID of the OAuth application that registered 
+            this webhook, if any
+        passcode:
+          type: string
+          description: The passcode that will be passed back to the webhook 
+            endpoint. For security, when using the GET endpoints, the value is 
+            an empty string
+        endpoint:
+          type: string
+          description: The endpoint that will be hit when the webhook is 
+            triggered
+        description:
+          type:
+          - string
+          - "null"
+          description: Optional user-provided description or name for the 
+            webhook. This is provided to help make maintaining a number of 
+            webhooks more convenient. Max length 140 characters.
+      required:
+      - id
+      - event_type
+      - team_id
+      - context
+      - context_id
+      - plan_api_id
+      - status
+      - client_id
+      - passcode
+      - endpoint
+      - description
+    WebhookV2Event:
+      type: string
+      description: An enum representing the possible events that a webhook can 
+        subscribe to
+      enum:
+      - PING
+      - FILE_UPDATE
+      - FILE_VERSION_UPDATE
+      - FILE_DELETE
+      - LIBRARY_PUBLISH
+      - FILE_COMMENT
+      - DEV_MODE_STATUS_UPDATE
+    WebhookV2Status:
+      type: string
+      description: |-
+        An enum representing the possible statuses you can set a webhook to:
+        - `ACTIVE`: The webhook is healthy and receive all events
+        - `PAUSED`: The webhook is paused and will not receive any events
+      enum:
+      - ACTIVE
+      - PAUSED
+    WebhookV2Request:
+      type: object
+      description: Information regarding the most recent interactions sent to a 
+        webhook endpoint
+      properties:
+        webhook_id:
+          type: string
+          description: The ID of the webhook the requests were sent to
+        request_info:
+          $ref: "#/components/schemas/WebhookV2RequestInfo"
+        response_info:
+          $ref: "#/components/schemas/WebhookV2ResponseInfo"
+        error_msg:
+          type:
+          - string
+          - "null"
+          description: Error message for this request. NULL if no error occurred
+      required:
+      - webhook_id
+      - request_info
+      - response_info
+      - error_msg
+    WebhookV2RequestInfo:
+      type: object
+      description: Information regarding the request sent to a webhook endpoint
+      properties:
+        id:
+          type: string
+          description: The ID of the webhook
+        endpoint:
+          type: string
+          description: The actual endpoint the request was sent to
+        payload:
+          type: object
+          description: The contents of the request that was sent to the endpoint
+        sent_at:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 timestamp of when the request was sent
+      required:
+      - id
+      - endpoint
+      - payload
+      - sent_at
+    WebhookV2ResponseInfo:
+      type:
+      - object
+      - "null"
+      description: Information regarding the reply sent back from a webhook 
+        endpoint
+      properties:
+        status:
+          type: string
+          description: HTTP status code of the response
+        received_at:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 timestamp of when the response was received
+      required:
+      - status
+      - received_at
     LibraryItemData:
       type: object
       description: An object representing the library item information in the 
@@ -4560,8 +4521,668 @@ components:
           type: string
           description: User id that is set if a fragment refers to a user 
             mention
-
-
+    WebhookBasePayload:
+      type: object
+      properties:
+        passcode:
+          type: string
+          description: The passcode specified when the webhook was created, 
+            should match what was initially provided
+        timestamp:
+          type: string
+          format: date-time
+          description: UTC ISO 8601 timestamp of when the event was triggered.
+        webhook_id:
+          type: string
+          description: The id of the webhook that caused the callback
+      required:
+      - passcode
+      - timestamp
+      - webhook_id
+    WebhookPingPayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - PING
+        required:
+        - event_type
+    WebhookFileUpdatePayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - FILE_UPDATE
+          file_key:
+            type: string
+            description: The key of the file that was updated
+          file_name:
+            type: string
+            description: The name of the file that was updated
+        required:
+        - event_type
+        - file_key
+        - file_name
+    WebhookFileDeletePayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - FILE_DELETE
+          file_key:
+            type: string
+            description: The key of the file that was deleted
+          file_name:
+            type: string
+            description: The name of the file that was deleted
+          triggered_by:
+            $ref: "#/components/schemas/User"
+            description: The user that deleted the file and triggered this event
+        required:
+        - event_type
+        - file_key
+        - file_name
+        - triggered_by
+    WebhookFileVersionUpdatePayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - FILE_VERSION_UPDATE
+          created_at:
+            type: string
+            format: date-time
+            description: UTC ISO 8601 timestamp of when the version was created
+          description:
+            type: string
+            description: Description of the version in the version history
+          file_key:
+            type: string
+            description: The key of the file that was updated
+          file_name:
+            type: string
+            description: The name of the file that was updated
+          triggered_by:
+            $ref: "#/components/schemas/User"
+            description: The user that created the named version and triggered 
+              this event
+          version_id:
+            type: string
+            description: ID of the published version
+        required:
+        - event_type
+        - created_at
+        - file_key
+        - file_name
+        - triggered_by
+        - version_id
+    WebhookLibraryPublishPayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - LIBRARY_PUBLISH
+          created_components:
+            type: array
+            description: Components that were created by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          created_styles:
+            type: array
+            description: Styles that were created by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          created_variables:
+            type: array
+            description: Variables that were created by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          modified_components:
+            type: array
+            description: Components that were modified by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          modified_styles:
+            type: array
+            description: Styles that were modified by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          modified_variables:
+            type: array
+            description: Variables that were modified by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          deleted_components:
+            type: array
+            description: Components that were deleted by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          deleted_styles:
+            type: array
+            description: Styles that were deleted by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          deleted_variables:
+            type: array
+            description: Variables that were deleted by the library publish
+            items:
+              $ref: "#/components/schemas/LibraryItemData"
+          description:
+            type: string
+            description: Description of the library publish
+          file_key:
+            type: string
+            description: The key of the file that was published
+          file_name:
+            type: string
+            description: The name of the file that was published
+          library_item:
+            $ref: "#/components/schemas/LibraryItemData"
+            description: The library item that was published
+          triggered_by:
+            $ref: "#/components/schemas/User"
+            description: The user that published the library and triggered this 
+              event
+        required:
+        - event_type
+        - created_components
+        - created_styles
+        - created_variables
+        - modified_components
+        - modified_styles
+        - modified_variables
+        - deleted_components
+        - deleted_styles
+        - deleted_variables
+        - file_key
+        - file_name
+        - library_item
+        - triggered_by
+    WebhookFileCommentPayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - FILE_COMMENT
+          comment:
+            type: array
+            description: Contents of the comment itself
+            items:
+              $ref: "#/components/schemas/CommentFragment"
+          comment_id:
+            type: string
+            description: Unique identifier for comment
+          created_at:
+            type: string
+            format: date-time
+            description: The UTC ISO 8601 time at which the comment was left
+          file_key:
+            type: string
+            description: The key of the file that was commented on
+          file_name:
+            type: string
+            description: The name of the file that was commented on
+          mentions:
+            type: array
+            description: Users that were mentioned in the comment
+            items:
+              $ref: "#/components/schemas/User"
+          triggered_by:
+            $ref: "#/components/schemas/User"
+            description: The user that made the comment and triggered this event
+        required:
+        - event_type
+        - comment
+        - comment_id
+        - created_at
+        - file_key
+        - file_name
+        - triggered_by
+    WebhookDevModeStatusUpdatePayload:
+      allOf:
+      - $ref: "#/components/schemas/WebhookBasePayload"
+      - type: object
+        properties:
+          event_type:
+            type: string
+            enum:
+            - DEV_MODE_STATUS_UPDATE
+          file_key:
+            type: string
+            description: The key of the file that was updated
+          file_name:
+            type: string
+            description: The name of the file that was updated
+          node_id:
+            type: string
+            description: The id of the node where the Dev Mode status changed. 
+              For example, "43:2"
+          related_links:
+            type: array
+            items:
+              $ref: "#/components/schemas/DevResource"
+            description: An array of related links that have been applied to the
+              layer in the file
+          status:
+            type: string
+            description: The Dev Mode status. Either "NONE", "READY_FOR_DEV", or
+              "COMPLETED"
+          triggered_by:
+            $ref: "#/components/schemas/User"
+            description: The user that made the status change and triggered the 
+              event
+        required:
+        - event_type
+        - file_key
+        - file_name
+        - node_id
+        - related_links
+        - status
+        - triggered_by
+    ActivityLogUserEntity:
+      type: object
+      description: A Figma user
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - user
+        id:
+          type: string
+          description: Unique stable id of the user.
+        name:
+          type: string
+          description: Name of the user.
+        email:
+          type: string
+          description: Email associated with the user's account.
+      required:
+      - type
+      - id
+      - name
+      - email
+    ActivityLogFileEntity:
+      type: object
+      description: A Figma Design or FigJam file
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - file
+        key:
+          type: string
+          description: Unique identifier of the file.
+        name:
+          type: string
+          description: Name of the file.
+        editor_type:
+          type: string
+          description: Indicates if the object is a file on Figma Design or 
+            FigJam.
+          enum:
+          - figma
+          - figjam
+        link_access:
+          $ref: "#/components/schemas/LinkAccess"
+          description: Access policy for users who have the link to the file.
+        proto_link_access:
+          type: string
+          description: Access policy for users who have the link to the file's 
+            prototype.
+          enum:
+          - view
+          - org_view
+          - inherit
+      required:
+      - type
+      - key
+      - name
+      - editor_type
+      - link_access
+      - proto_link_access
+    ActivityLogFileRepoEntity:
+      type: object
+      description: A file branch that diverges from and can be merged back into 
+        the main file
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - file_repo
+        id:
+          type: string
+          description: Unique identifier of the file branch.
+        name:
+          type: string
+          description: Name of the file.
+        main_file_key:
+          type: string
+          description: Key of the main file.
+      required:
+      - type
+      - id
+      - name
+      - main_file_key
+    ActivityLogProjectEntity:
+      type: object
+      description: A project that a collection of Figma files are grouped under
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - project
+        id:
+          type: string
+          description: Unique identifier of the project.
+        name:
+          type: string
+          description: Name of the project.
+      required:
+      - type
+      - id
+      - name
+    ActivityLogTeamEntity:
+      type: object
+      description: A Figma team that contains multiple users and projects
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - team
+        id:
+          type: string
+          description: Unique identifier of the team.
+        name:
+          type: string
+          description: Name of the team.
+      required:
+      - type
+      - id
+      - name
+    ActivityLogWorkspaceEntity:
+      type: object
+      description: Part of the organizational hierarchy of managing files and 
+        users within Figma, only available on the Enterprise Plan
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - workspace
+        id:
+          type: string
+          description: Unique identifier of the workspace.
+        name:
+          type: string
+          description: Name of the workspace.
+      required:
+      - type
+      - id
+      - name
+    ActivityLogOrgEntity:
+      type: object
+      description: A Figma organization
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - org
+        id:
+          type: string
+          description: Unique identifier of the organization.
+        name:
+          type: string
+          description: Name of the organization.
+      required:
+      - type
+      - id
+      - name
+    ActivityLogPluginEntity:
+      type: object
+      description: A Figma plugin
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - plugin
+        id:
+          type: string
+          description: Unique identifier of the plugin.
+        name:
+          type: string
+          description: Name of the plugin.
+        editor_type:
+          type: string
+          description: Indicates if the object is a plugin is available on Figma
+            Design or FigJam.
+          enum:
+          - figma
+          - figjam
+      required:
+      - type
+      - id
+      - name
+      - editor_type
+    ActivityLogWidgetEntity:
+      type: object
+      description: A Figma widget
+      properties:
+        type:
+          type: string
+          description: The type of entity.
+          enum:
+          - widget
+        id:
+          type: string
+          description: Unique identifier of the widget.
+        name:
+          type: string
+          description: Name of the widget.
+        editor_type:
+          type: string
+          description: Indicates if the object is a widget available on Figma 
+            Design or FigJam.
+          enum:
+          - figma
+          - figjam
+      required:
+      - type
+      - id
+      - name
+      - editor_type
+    ActivityLog:
+      type: object
+      description: An event returned by the Activity Logs API.
+      properties:
+        id:
+          type: string
+          description: The ID of the event.
+        timestamp:
+          type: number
+          description: The timestamp of the event in seconds since the Unix 
+            epoch.
+        actor:
+          type:
+          - object
+          - "null"
+          description: The user who performed the action.
+          properties:
+            type:
+              type: string
+              description: The type of the user.
+              enum:
+              - user
+            id:
+              type: string
+              description: The ID of the user.
+            name:
+              type: string
+              description: The name of the user. For SCIM events, the value is 
+                "SCIM Provider". For official support actions, the value is 
+                "Figma Support".
+            email:
+              type: string
+              description: The email of the user.
+          required:
+          - name
+        action:
+          type: object
+          description: The task or activity the actor performed.
+          properties:
+            type:
+              type: string
+              description: The type of the action.
+            details:
+              type:
+              - object
+              - "null"
+              description: Metadata of the action. Each action type supports its
+                own metadata attributes.
+              additionalProperties: true
+          required:
+          - type
+          - details
+        entity:
+          description: The resource the actor took the action on. It can be a 
+            user, file, project or other resource types.
+          oneOf:
+          - $ref: "#/components/schemas/ActivityLogUserEntity"
+          - $ref: "#/components/schemas/ActivityLogFileEntity"
+          - $ref: "#/components/schemas/ActivityLogFileRepoEntity"
+          - $ref: "#/components/schemas/ActivityLogProjectEntity"
+          - $ref: "#/components/schemas/ActivityLogTeamEntity"
+          - $ref: "#/components/schemas/ActivityLogWorkspaceEntity"
+          - $ref: "#/components/schemas/ActivityLogOrgEntity"
+          - $ref: "#/components/schemas/ActivityLogPluginEntity"
+          - $ref: "#/components/schemas/ActivityLogWidgetEntity"
+          discriminator:
+            propertyName: type
+            mapping:
+              user: "#/components/schemas/ActivityLogUserEntity"
+              file: "#/components/schemas/ActivityLogFileEntity"
+              file_repo: "#/components/schemas/ActivityLogFileRepoEntity"
+              project: "#/components/schemas/ActivityLogProjectEntity"
+              team: "#/components/schemas/ActivityLogTeamEntity"
+              workspace: "#/components/schemas/ActivityLogWorkspaceEntity"
+              org: "#/components/schemas/ActivityLogOrgEntity"
+              plugin: "#/components/schemas/ActivityLogPluginEntity"
+              widget: "#/components/schemas/ActivityLogWidgetEntity"
+        context:
+          type: object
+          description: Contextual information about the event.
+          properties:
+            client_name:
+              type:
+              - string
+              - "null"
+              description: The third-party application that triggered the event,
+                if applicable.
+            ip_address:
+              type: string
+              description: The IP address from of the client that sent the event
+                request.
+            is_figma_support_team_action:
+              type: boolean
+              description: If Figma's Support team triggered the event. This is 
+                either true or false.
+            org_id:
+              type: string
+              description: The id of the organization where the event took 
+                place.
+            team_id:
+              type:
+              - string
+              - "null"
+              description: The id of the team where the event took place -- if 
+                this took place in a specific team.
+          required:
+          - client_name
+          - ip_address
+          - is_figma_support_team_action
+          - org_id
+          - team_id
+      required:
+      - id
+      - timestamp
+      - actor
+      - action
+      - entity
+      - context
+    PaymentStatus:
+      type: object
+      description: An object describing the user's payment status.
+      properties:
+        type:
+          type: string
+          description: |-
+            The current payment status of the user on the resource, as a string enum:
+              
+            - `UNPAID`: user has not paid for the resource
+            - `PAID`: user has an active purchase on the resource
+            - `TRIAL`: user is in the trial period for a subscription resource
+          enum:
+          - UNPAID
+          - PAID
+          - TRIAL
+    PaymentInformation:
+      type: object
+      description: An object describing a user's payment information for a 
+        plugin, widget, or Community file.
+      properties:
+        user_id:
+          type: string
+          description: The ID of the user whose payment information was queried.
+            Can be used to verify the validity of a response.
+        resource_id:
+          type: string
+          description: The ID of the plugin, widget, or Community file that was 
+            queried. Can be used to verify the validity of a response.
+        resource_type:
+          type: string
+          description: The type of the resource.
+          enum:
+          - PLUGIN
+          - WIDGET
+          - COMMUNITY_FILE
+        payment_status:
+          $ref: "#/components/schemas/PaymentStatus"
+        date_of_purchase:
+          type: string
+          format: date-time
+          description: |-
+            The UTC ISO 8601 timestamp indicating when the user purchased the resource. No value is given if the user has never purchased the resource.
+              
+            Note that a value will still be returned if the user had purchased the resource, but no longer has active access to it (e.g. purchase refunded, subscription ended).
+      required:
+      - user_id
+      - resource_id
+      - resource_type
+      - payment_status
     VariableScope:
       type: string
       enum:
@@ -4713,13 +5334,8 @@ components:
           description: The id of the variable collection that contains this 
             variable.
         resolvedType:
-          type: string
+          $ref: "#/components/schemas/VariableResolvedDataType"
           description: The resolved type of the variable.
-          enum:
-          - BOOLEAN
-          - FLOAT
-          - STRING
-          - COLOR
         valuesByMode:
           type: object
           description: The values for each mode of this variable.
@@ -4827,13 +5443,8 @@ components:
           description: The id of the variable collection that contains this 
             variable.
         resolvedDataType:
-          type: string
+          $ref: "#/components/schemas/VariableResolvedDataType"
           description: The resolved type of the variable.
-          enum:
-          - BOOLEAN
-          - FLOAT
-          - STRING
-          - COLOR
         updatedAt:
           type: string
           format: date-time
@@ -5021,13 +5632,8 @@ components:
           description: The variable collection that will contain the variable. 
             You can use the temporary id of a variable collection.
         resolvedType:
-          type: string
+          $ref: "#/components/schemas/VariableResolvedDataType"
           description: The resolved type of the variable.
-          enum:
-          - BOOLEAN
-          - FLOAT
-          - STRING
-          - COLOR
         description:
           type: string
           description: The description of this variable.
@@ -5141,6 +5747,376 @@ components:
       - $ref: "#/components/schemas/RGB"
       - $ref: "#/components/schemas/RGBA"
       - $ref: "#/components/schemas/VariableAlias"
+    DevResource:
+      type: object
+      description: A dev resource in a file
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the dev resource
+        name:
+          type: string
+          description: The name of the dev resource.
+        url:
+          type: string
+          description: The URL of the dev resource.
+        file_key:
+          type: string
+          description: The file key where the dev resource belongs.
+        node_id:
+          type: string
+          description: The target node to attach the dev resource to.
+      required:
+      - id
+      - name
+      - url
+      - file_key
+      - node_id
+    LibraryAnalyticsComponentActionsByAsset:
+      type: object
+      description: Library analytics component actions data broken down by 
+        asset.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        component_key:
+          type: string
+          description: Unique, stable id of the component.
+        component_name:
+          type: string
+          description: Name of the component.
+        component_set_key:
+          type: string
+          description: Unique, stable id of the component set that this 
+            component belongs to.
+        component_set_name:
+          type: string
+          description: Name of the component set that this component belongs to.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - component_key
+      - component_name
+      - detachments
+      - insertions
+    LibraryAnalyticsComponentActionsByTeam:
+      type: object
+      description: Library analytics action data broken down by team.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        team_name:
+          type: string
+          description: The name of the team using the library.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the team belongs to.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - team_name
+      - detachments
+      - insertions
+    LibraryAnalyticsComponentUsagesByAsset:
+      type: object
+      description: Library analytics component usage data broken down by 
+        component.
+      properties:
+        component_key:
+          type: string
+          description: Unique, stable id of the component.
+        component_name:
+          type: string
+          description: Name of the component.
+        component_set_key:
+          type: string
+          description: Unique, stable id of the component set that this 
+            component belongs to.
+        component_set_name:
+          type: string
+          description: Name of the component set that this component belongs to.
+        usages:
+          type: number
+          description: The number of instances of the component within the 
+            organization.
+        teams_using:
+          type: number
+          description: The number of teams using the component within the 
+            organization.
+        files_using:
+          type: number
+          description: The number of files using the component within the 
+            organization.
+      required:
+      - component_key
+      - component_name
+      - usages
+      - teams_using
+      - files_using
+    LibraryAnalyticsComponentUsagesByFile:
+      type: object
+      description: Library analytics component usage data broken down by file.
+      properties:
+        file_name:
+          type: string
+          description: The name of the file using the library.
+        team_name:
+          type: string
+          description: The name of the team the file belongs to.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the file belongs to.
+        usages:
+          type: number
+          description: The number of component instances from the library used 
+            within the file.
+      required:
+      - file_name
+      - team_name
+      - usages
+    LibraryAnalyticsStyleActionsByAsset:
+      type: object
+      description: Library analytics style actions data broken down by asset.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        style_key:
+          type: string
+          description: Unique, stable id of the style.
+        style_name:
+          type: string
+          description: The name of the style.
+        style_type:
+          type: string
+          description: The type of the style.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - style_key
+      - style_name
+      - style_type
+      - detachments
+      - insertions
+    LibraryAnalyticsStyleActionsByTeam:
+      type: object
+      description: Library analytics style action data broken down by team.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        team_name:
+          type: string
+          description: The name of the team using the library.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the team belongs to.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - team_name
+      - detachments
+      - insertions
+    LibraryAnalyticsStyleUsagesByAsset:
+      type: object
+      description: Library analytics style usage data broken down by component.
+      properties:
+        style_key:
+          type: string
+          description: Unique, stable id of the style.
+        style_name:
+          type: string
+          description: The name of the style.
+        style_type:
+          type: string
+          description: The type of the style.
+        usages:
+          type: number
+          description: The number of usages of the style within the 
+            organization.
+        teams_using:
+          type: number
+          description: The number of teams using the style within the 
+            organization.
+        files_using:
+          type: number
+          description: The number of files using the style within the 
+            organization.
+      required:
+      - style_key
+      - style_name
+      - style_type
+      - usages
+      - teams_using
+      - files_using
+    LibraryAnalyticsStyleUsagesByFile:
+      type: object
+      description: Library analytics style usage data broken down by file.
+      properties:
+        file_name:
+          type: string
+          description: The name of the file using the library.
+        team_name:
+          type: string
+          description: The name of the team the file belongs to.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the file belongs to.
+        usages:
+          type: number
+          description: The number of times styles from this library are used 
+            within the file.
+      required:
+      - file_name
+      - team_name
+      - usages
+    LibraryAnalyticsVariableActionsByAsset:
+      type: object
+      description: Library analytics variable actions data broken down by asset.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        variable_key:
+          type: string
+          description: Unique, stable id of the variable.
+        variable_name:
+          type: string
+          description: The name of the variable.
+        variable_type:
+          type: string
+          description: The type of the variable.
+        collection_key:
+          type: string
+          description: Unique, stable id of the collection the variable belongs 
+            to.
+        collection_name:
+          type: string
+          description: The name of the collection the variable belongs to.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - variable_key
+      - variable_name
+      - variable_type
+      - collection_key
+      - collection_name
+      - detachments
+      - insertions
+    LibraryAnalyticsVariableActionsByTeam:
+      type: object
+      description: Library analytics variable action data broken down by team.
+      properties:
+        week:
+          type: string
+          description: The date in ISO 8601 format. e.g. 2023-12-13
+        team_name:
+          type: string
+          description: The name of the team using the library.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the team belongs to.
+        detachments:
+          type: number
+          description: The number of detach events for this period.
+        insertions:
+          type: number
+          description: The number of insertion events for this period.
+      required:
+      - week
+      - team_name
+      - detachments
+      - insertions
+    LibraryAnalyticsVariableUsagesByAsset:
+      type: object
+      description: Library analytics variable usage data broken down by 
+        component.
+      properties:
+        variable_key:
+          type: string
+          description: Unique, stable id of the variable.
+        variable_name:
+          type: string
+          description: The name of the variable.
+        variable_type:
+          type: string
+          description: The type of the variable.
+        collection_key:
+          type: string
+          description: Unique, stable id of the collection the variable belongs 
+            to.
+        collection_name:
+          type: string
+          description: The name of the collection the variable belongs to.
+        usages:
+          type: number
+          description: The number of usages of the variable within the 
+            organization.
+        teams_using:
+          type: number
+          description: The number of teams using the variable within the 
+            organization.
+        files_using:
+          type: number
+          description: The number of files using the variable within the 
+            organization.
+      required:
+      - variable_key
+      - variable_name
+      - variable_type
+      - collection_key
+      - collection_name
+      - usages
+      - teams_using
+      - files_using
+    LibraryAnalyticsVariableUsagesByFile:
+      type: object
+      description: Library analytics variable usage data broken down by file.
+      properties:
+        file_name:
+          type: string
+          description: The name of the file using the library.
+        team_name:
+          type: string
+          description: The name of the team the file belongs to.
+        workspace_name:
+          type: string
+          description: The name of the workspace that the file belongs to.
+        usages:
+          type: number
+          description: The number of times variables from this library are used 
+            within the file.
+      required:
+      - file_name
+      - team_name
+      - usages
     ResponsePagination:
       type: object
       description: If pagination is needed due to the length of the response, 
@@ -5192,6 +6168,23 @@ components:
       - error
       - status
       - message
+    LinkAccess:
+      type: string
+      description: Access policy for users who have the link to the resource.
+      enum:
+      - view
+      - edit
+      - org_view
+      - org_edit
+      - inherit
+    Role:
+      type: string
+      description: The role of the user making the API request in relation to 
+        the resource.
+      enum:
+      - owner
+      - editor
+      - viewer
     LayerBlurEffect:
       type: object
       properties:
@@ -5231,11 +6224,7 @@ components:
                 type: string
                 description: The name of the file as it appears in the editor.
               role:
-                type: string
-                enum:
-                - owner
-                - editor
-                - viewer
+                $ref: "#/components/schemas/Role"
                 description: The role of the user making the API request in 
                   relation to the file.
               lastModified:
@@ -5333,11 +6322,7 @@ components:
                 type: string
                 description: The name of the file as it appears in the editor.
               role:
-                type: string
-                enum:
-                - owner
-                - editor
-                - viewer
+                $ref: "#/components/schemas/Role"
                 description: The role of the user making the API request in 
                   relation to the file.
               lastModified:
@@ -5480,23 +6465,16 @@ components:
                 - figma
                 - figjam
                 - slides
+                - buzz
+                - sites
+                - make
                 description: The type of editor associated with this file.
               role:
-                type: string
-                enum:
-                - owner
-                - editor
-                - viewer
+                $ref: "#/components/schemas/Role"
                 description: The role of the user making the API request in 
                   relation to the file.
               link_access:
-                type: string
-                enum:
-                - view
-                - edit
-                - org_view
-                - org_edit
-                - inherit
+                $ref: "#/components/schemas/LinkAccess"
                 description: Access policy for users who have the link to the 
                   file.
               url:
@@ -5512,7 +6490,62 @@ components:
             - last_touched_at
             - creator
             - editorType
-
+    GetTeamProjectsResponse:
+      description: Response from the GET /v1/teams/{team_id}/projects endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The team's name.
+              projects:
+                type: array
+                description: An array of projects.
+                items:
+                  $ref: "#/components/schemas/Project"
+            required:
+            - name
+            - projects
+    GetProjectFilesResponse:
+      description: Response from the GET /v1/projects/{project_id}/files 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The project's name.
+              files:
+                type: array
+                description: An array of files.
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                      description: The file's key.
+                    name:
+                      type: string
+                      description: The file's name.
+                    thumbnail_url:
+                      type: string
+                      description: The file's thumbnail URL.
+                    last_modified:
+                      type: string
+                      format: date-time
+                      description: The UTC ISO 8601 time at which the file was 
+                        last modified.
+                  required:
+                  - key
+                  - name
+                  - last_modified
+            required:
+            - name
+            - files
     GetFileVersionsResponse:
       description: Response from the GET /v1/files/{file_key}/versions endpoint.
       content:
@@ -5530,7 +6563,160 @@ components:
             required:
             - versions
             - pagination
-
+    GetCommentsResponse:
+      description: Response from the GET /v1/files/{file_key}/comments endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              comments:
+                type: array
+                description: An array of comments.
+                items:
+                  $ref: "#/components/schemas/Comment"
+            required:
+            - comments
+    PostCommentResponse:
+      description: Response from the POST /v1/files/{file_key}/comments 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Comment"
+    DeleteCommentResponse:
+      description: Response from the DELETE 
+        /v1/files/{file_key}/comments/{comment_id} endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                description: The status of the request.
+                enum:
+                - 200
+              error:
+                type: boolean
+                description: For successful requests, this value is always 
+                  `false`.
+                enum:
+                - false
+            required:
+            - status
+            - error
+    GetCommentReactionsResponse:
+      description: Response from the GET 
+        /v1/files/{file_key}/comments/{comment_id}/reactions endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              reactions:
+                type: array
+                description: An array of reactions.
+                items:
+                  $ref: "#/components/schemas/Reaction"
+              pagination:
+                $ref: "#/components/schemas/ResponsePagination"
+            required:
+            - reactions
+            - pagination
+    PostCommentReactionResponse:
+      description: Response from the POST 
+        /v1/files/{file_key}/comments/{comment_id}/reactions endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                description: The status of the request.
+                enum:
+                - 200
+              error:
+                type: boolean
+                description: For successful requests, this value is always 
+                  `false`.
+                enum:
+                - false
+            required:
+            - status
+            - error
+    DeleteCommentReactionResponse:
+      description: Response from the DELETE 
+        /v1/files/{file_key}/comments/{comment_id}/reactions endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                description: The status of the request.
+                enum:
+                - 200
+              error:
+                type: boolean
+                description: For successful requests, this value is always 
+                  `false`.
+                enum:
+                - false
+            required:
+            - status
+            - error
+    GetMeResponse:
+      description: Response from the GET /v1/me endpoint.
+      content:
+        application/json:
+          schema:
+            allOf:
+            - $ref: "#/components/schemas/User"
+            - type: object
+              properties:
+                email:
+                  type: string
+                  description: Email associated with the user's account. This 
+                    property is only present on the /v1/me endpoint.
+              required:
+              - email
+    GetTeamComponentsResponse:
+      description: Response from the GET /v1/teams/{team_id}/components 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                description: The status of the request.
+                enum:
+                - 200
+              error:
+                type: boolean
+                description: For successful requests, this value is always 
+                  `false`.
+                enum:
+                - false
+              meta:
+                type: object
+                properties:
+                  components:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublishedComponent"
+                  cursor:
+                    $ref: "#/components/schemas/ResponseCursor"
+                required:
+                - components
+            required:
+            - status
+            - error
+            - meta
     GetFileComponentsResponse:
       description: Response from the GET /v1/files/{file_key}/components 
         endpoint.
@@ -5587,7 +6773,40 @@ components:
             - status
             - error
             - meta
-
+    GetTeamComponentSetsResponse:
+      description: Response from the GET /v1/teams/{team_id}/component_sets 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                description: The status of the request.
+                enum:
+                - 200
+              error:
+                type: boolean
+                description: For successful requests, this value is always 
+                  `false`.
+                enum:
+                - false
+              meta:
+                type: object
+                properties:
+                  component_sets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublishedComponentSet"
+                  cursor:
+                    $ref: "#/components/schemas/ResponseCursor"
+                required:
+                - component_sets
+            required:
+            - status
+            - error
+            - meta
     GetFileComponentSetsResponse:
       description: Response from the GET /v1/files/{file_key}/component_sets 
         endpoint.
@@ -5732,7 +6951,132 @@ components:
             - status
             - error
             - meta
-
+    PostWebhookResponse:
+      description: Response from the POST /v2/webhooks endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WebhookV2"
+    GetWebhookResponse:
+      description: Response from the GET /v2/webhooks/{webhook_id} endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WebhookV2"
+    GetWebhooksResponse:
+      description: Response from the GET /v2/webhooks endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              webhooks:
+                type: array
+                description: An array of webhooks.
+                items:
+                  $ref: "#/components/schemas/WebhookV2"
+              pagination:
+                $ref: "#/components/schemas/ResponsePagination"
+            required:
+            - webhooks
+    PutWebhookResponse:
+      description: Response from the PUT /v2/webhooks/{webhook_id} endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WebhookV2"
+    DeleteWebhookResponse:
+      description: Response from the DELETE /v2/webhooks/{webhook_id} endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WebhookV2"
+    GetTeamWebhooksResponse:
+      description: Response from the GET /v2/teams/{team_id}/webhooks endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              webhooks:
+                type: array
+                description: An array of webhooks.
+                items:
+                  $ref: "#/components/schemas/WebhookV2"
+            required:
+            - webhooks
+    GetWebhookRequestsResponse:
+      description: Response from the GET /v2/webhooks/{webhook_id}/requests 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              requests:
+                type: array
+                description: An array of webhook requests.
+                items:
+                  $ref: "#/components/schemas/WebhookV2Request"
+            required:
+            - requests
+    GetActivityLogsResponse:
+      description: Response from the GET /v1/activity_logs endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                enum:
+                - 200
+                description: The response status code.
+              error:
+                type: boolean
+                enum:
+                - false
+                description: For successful requests, this value is always 
+                  `false`.
+              meta:
+                type: object
+                properties:
+                  activity_logs:
+                    type: array
+                    description: An array of activity logs sorted by timestamp 
+                      in ascending order by default.
+                    items:
+                      $ref: "#/components/schemas/ActivityLog"
+                  cursor:
+                    type: string
+                    description: Encodes the last event (the most recent event)
+                  next_page:
+                    type: boolean
+                    description: Whether there is a next page of events
+    GetPaymentsResponse:
+      description: Response from the GET /v1/payments endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: number
+                enum:
+                - 200
+                description: The response status code.
+              error:
+                type: boolean
+                enum:
+                - false
+                description: For successful requests, this value is always 
+                  `false`.
+              meta:
+                $ref: "#/components/schemas/PaymentInformation"
+            required:
+            - status
+            - error
+            - meta
     GetLocalVariablesResponse:
       description: Response from the GET /v1/files/{file_key}/variables/local 
         endpoint.
@@ -5847,7 +7191,255 @@ components:
             - status
             - error
             - meta
-
+    GetDevResourcesResponse:
+      description: Response from the GET /v1/files/{file_key}/dev_resources 
+        endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              dev_resources:
+                type: array
+                description: An array of dev resources.
+                items:
+                  $ref: "#/components/schemas/DevResource"
+            required:
+            - dev_resources
+    PostDevResourcesResponse:
+      description: Response from the POST /v1/dev_resources endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              links_created:
+                type: array
+                description: An array of links created.
+                items:
+                  $ref: "#/components/schemas/DevResource"
+              errors:
+                type: array
+                description: An array of errors.
+                items:
+                  type: object
+                  properties:
+                    file_key:
+                      type:
+                      - string
+                      - "null"
+                      description: The file key.
+                    node_id:
+                      type:
+                      - string
+                      - "null"
+                      description: The node id.
+                    error:
+                      type: string
+                      description: The error message.
+                  required:
+                  - error
+            required:
+            - links_created
+    PutDevResourcesResponse:
+      description: Response from the PUT /v1/dev_resources endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              links_updated:
+                type: array
+                description: An array of links updated.
+                items:
+                  $ref: "#/components/schemas/DevResource"
+              errors:
+                type: array
+                description: An array of errors.
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: The id of the dev resource.
+                    error:
+                      type: string
+                      description: The error message.
+                  required:
+                  - error
+            required:
+            - links_created
+    DeleteDevResourceResponse:
+      description: Response from the DELETE 
+        /v1/files/{file_key}/dev_resources/{dev_resource_id} endpoint.
+    GetLibraryAnalyticsComponentActionsResponse:
+      description: Response from the GET 
+        /v1/analytics/libraries/{file_key}/component/actions.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsComponentActionsByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsComponentActionsByTeam"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
+    GetLibraryAnalyticsComponentUsagesResponse:
+      description: Response from the PUT 
+        /v1/analytics/libraries/{file_key}/component/usages.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsComponentUsagesByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsComponentUsagesByFile"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
+    GetLibraryAnalyticsStyleActionsResponse:
+      description: Response from the GET 
+        /v1/analytics/libraries/{file_key}/style/actions.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsStyleActionsByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsStyleActionsByTeam"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
+    GetLibraryAnalyticsStyleUsagesResponse:
+      description: Response from the PUT 
+        /v1/analytics/libraries/{file_key}/style/usages.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsStyleUsagesByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsStyleUsagesByFile"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
+    GetLibraryAnalyticsVariableActionsResponse:
+      description: Response from the GET 
+        /v1/analytics/libraries/{file_key}/variable/actions.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsVariableActionsByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsVariableActionsByTeam"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
+    GetLibraryAnalyticsVariableUsagesResponse:
+      description: Response from the PUT 
+        /v1/analytics/libraries/{file_key}/variable/usages.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rows:
+                description: An array of analytics data.
+                oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsVariableUsagesByAsset"
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/LibraryAnalyticsVariableUsagesByFile"
+              next_page:
+                type: boolean
+                description: Whether there is a next page of data that can be 
+                  fetched.
+              cursor:
+                type: string
+                description: The cursor to use to fetch the next page of data. 
+                  Not present if next_page is false.
+            required:
+            - rows
+            - next_page
     BadRequestErrorResponseWithErrMessage:
       description: Bad request. Parameters are invalid or malformed. Please 
         check the input formats. This error can also happen if the requested 

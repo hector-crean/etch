@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let token = env::var("X_FIGMA_TOKEN").expect("X_FIGMA_TOKEN environment variable not set");
-    let file_key = "m4UGniGw5YMoSPXbKvEfrW";
+    let file_key = "P9ptJxYplaIQ1hJ1IQ9z6w";
 
     // Create a configuration with the token
     let mut config = Configuration::default();

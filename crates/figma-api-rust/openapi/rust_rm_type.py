@@ -111,7 +111,7 @@ if override_path.exists():
 
     # Handle components.schemas overrides
     for k, v in override_data.get("components", {}).get("schemas", {}).items():
-        print(f"🔁 Overriding schema: {k}")
+        print(f">> Overriding schema: {k}")
         if k in FULL_REPLACE_KEYS:
             data["components"]["schemas"][k] = v
         else:
@@ -120,7 +120,7 @@ if override_path.exists():
 
     # Handle components.responses overrides
     for k, v in override_data.get("components", {}).get("responses", {}).items():
-        print(f"🔁 Overriding response: {k}")
+        print(f">> Overriding response: {k}")
         if k in FULL_REPLACE_KEYS:
             data["components"]["responses"][k] = v
         else:
@@ -146,9 +146,9 @@ for schema_name, schema in schemas.items():
 for schema_name, prop_names in discriminator_targets.items():
     schema = schemas.get(schema_name)
     if not schema:
-        print(f"⚠️ Schema {schema_name} not found.")
+        print(f"!! Schema {schema_name} not found.")
         continue
-    print(f"✂️  Cleaning discriminator target: {schema_name}")
+    print(f"-- Cleaning discriminator target: {schema_name}")
     all_of = schema.get("allOf", [])
     for item in all_of:
         if isinstance(item, dict) and item.get("type") == "object":
@@ -163,7 +163,7 @@ for schema_name, prop_names in discriminator_targets.items():
 
 layer_trait = schemas.get("IsLayerTrait")
 if layer_trait and isinstance(layer_trait, dict):
-    print("✂️  Cleaning IsLayerTrait")
+    print("-- Cleaning IsLayerTrait")
     props = layer_trait.get("properties", {})
     props.pop("type", None)
     if "required" in layer_trait:
@@ -210,8 +210,8 @@ for schema_name, schema in schemas.items():
         props = target.get("properties", {})
         for key in HARD_REMOVED_PROPS:
             if key in props:
-                print(f"❌ Hard removing `{key}` from {schema_name}")
+                print(f"XX Hard removing `{key}` from {schema_name}")
                 props.pop(key)
 
 yaml.dump(data, Path("openapi.file.rust.yaml"))
-print("✅ Done. Discriminator 'type' fields removed.")
+print("Done. Discriminator 'type' fields removed.")

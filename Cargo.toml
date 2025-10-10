@@ -1,6 +1,6 @@
 [workspace]
-members = ["cli", "crates/*"]
-exclude = []
+members = ["cli", "crates/*", "crates/figma-api-rust/figma_rest_api_file"]
+exclude = ["crates/figma-api-rust"]
 resolver = "2"
 edition = "2024"
 
@@ -19,6 +19,7 @@ etch_tsx = { path = "crates/etch_tsx" }
 etch_figma = { path = "crates/etch_figma" }
 etch_nextjs = { path = "crates/etch_nextjs" }
 etch_svg = { path = "crates/etch_svg" }
+figma-api = { path = "crates/figma-api-rust/figma_rest_api_file" }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0"
 color-eyre = "0.6.3"
@@ -31,12 +32,12 @@ chrono = { version = "0.4.24", features = ["serde"] }
 dotenv = "0.15.0"
 walkdir = "2.3.3"
 strum = { version = "0.26.0", features = ["derive"] }
-swc_ecma_parser = "10.0.0"
-swc_ecma_visit = "8.0.0"
-swc_common = "8.0.0"
-swc_ecma_ast = "8.0.0"
-swc_ecma_codegen = "8.0.1"
-swc_atoms = "5.0.0"
+swc_ecma_parser = "24.0.3"
+swc_ecma_visit = "15.0.0"
+swc_common = "14.0.4"
+swc_ecma_ast = "15.0.0"
+swc_ecma_codegen = "17.0.2"
+swc_atoms = "7.0.0"
 regex = "1.9.1"
 reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
 futures = "0.3"
