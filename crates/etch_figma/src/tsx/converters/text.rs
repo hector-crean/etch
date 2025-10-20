@@ -6,14 +6,24 @@ use swc_ecma_ast::{
     JSXElement, JSXElementChild, JSXElementName, JSXExpr, JSXExprContainer, JSXOpeningElement,
     JSXText, KeyValueProp, Lit, ObjectLit, Prop, PropName, PropOrSpread, Str,
 };
+use crate::codegen_ext::CodeGenConfig;
+use crate::analyzers::text::TextAnalyzer;
+use crate::tsx::converters::ToJsx;
 
 /// Extension trait for TextNode to provide JSX conversion
 pub trait TextNodeExt {
     fn to_jsx(&self) -> JSXElement;
+    fn to_jsx_with_config(&self, config: &CodeGenConfig) -> JSXElement;
 }
 
 impl TextNodeExt for TextNode {
     fn to_jsx(&self) -> JSXElement {
+        // Use default config for backward compatibility
+        let config = CodeGenConfig::default();
+        self.to_jsx_with_config(&config)
+    }
+
+    fn to_jsx_with_config(&self, config: &CodeGenConfig) -> JSXElement {
         use crate::tailwind_ext::TailwindStyleExt;
 
         // Get base Tailwind styles
@@ -66,8 +76,8 @@ impl TextNodeExt for TextNode {
         attrs.push(create_text_attr("data-name", &self.name));
         attrs.push(create_text_attr("data-text", "true"));
 
-        // Build children with style overrides
-        let children = build_text_children(self);
+        // Build children with style overrides and special formatting
+        let children = build_text_children_with_config(self, config);
 
         JSXElement {
             span: DUMMY_SP,
@@ -95,6 +105,21 @@ impl TextNodeExt for TextNode {
             children,
         }
     }
+}
+
+/// Build text children with style overrides and special formatting
+fn build_text_children_with_config(text: &TextNode, config: &CodeGenConfig) -> Vec<JSXElementChild> {
+    if config.detect_superscripts {
+        let superscripts = TextAnalyzer::detect_superscripts(text);
+        let subscripts = TextAnalyzer::detect_subscripts(text);
+        
+        if !superscripts.is_empty() || !subscripts.is_empty() {
+            return build_text_with_special_formatting(text, superscripts, subscripts);
+        }
+    }
+    
+    // Fall back to original implementation
+    build_text_children(text)
 }
 
 /// Build text children with style overrides
@@ -228,7 +253,7 @@ fn create_styled_span(
 
         // Text color
         if let Some(fills) = &type_style.fills {
-            if let Some(color) = crate::tsx::paint::extract_first_paint_color(fills) {
+            if let Some(color) = crate::svg::utils::paint::extract_first_paint_color(fills) {
                 classes.push(format!("text-[{}]", color));
             }
         }
@@ -283,6 +308,166 @@ fn create_styled_span(
     JSXElementChild::JSXElement(Box::new(span_element))
 }
 
+/// Build text with special formatting (superscripts and subscripts)
+fn build_text_with_special_formatting(
+    text: &TextNode,
+    superscripts: Vec<crate::analyzers::text::SuperscriptRange>,
+    subscripts: Vec<crate::analyzers::text::SubscriptRange>,
+) -> Vec<JSXElementChild> {
+    let characters: Vec<char> = text.characters.chars().collect();
+    let mut children = Vec::new();
+    let mut current_text = String::new();
+    let mut i = 0;
+
+    while i < characters.len() {
+        let ch = characters[i];
+        
+        // Check if current position is in a superscript range
+        let in_superscript = superscripts.iter().any(|range| i >= range.start && i < range.end);
+        let in_subscript = subscripts.iter().any(|range| i >= range.start && i < range.end);
+        
+        if in_superscript {
+            // Finish any current text
+            if !current_text.is_empty() {
+                children.push(JSXElementChild::JSXText(JSXText {
+                    span: DUMMY_SP,
+                    value: current_text.clone().into(),
+                    raw: current_text.clone().into(),
+                }));
+                current_text.clear();
+            }
+            
+            // Find the end of the superscript range
+            let superscript_range = superscripts.iter()
+                .find(|range| i >= range.start && i < range.end)
+                .unwrap();
+            let end = superscript_range.end.min(characters.len());
+            
+            // Collect superscript text
+            let mut superscript_text = String::new();
+            while i < end {
+                superscript_text.push(characters[i]);
+                i += 1;
+            }
+            
+            // Create <sup> element
+            let sup_element = create_superscript_element(&superscript_text);
+            children.push(JSXElementChild::JSXElement(Box::new(sup_element)));
+            
+        } else if in_subscript {
+            // Finish any current text
+            if !current_text.is_empty() {
+                children.push(JSXElementChild::JSXText(JSXText {
+                    span: DUMMY_SP,
+                    value: current_text.clone().into(),
+                    raw: current_text.clone().into(),
+                }));
+                current_text.clear();
+            }
+            
+            // Find the end of the subscript range
+            let subscript_range = subscripts.iter()
+                .find(|range| i >= range.start && i < range.end)
+                .unwrap();
+            let end = subscript_range.end.min(characters.len());
+            
+            // Collect subscript text
+            let mut subscript_text = String::new();
+            while i < end {
+                subscript_text.push(characters[i]);
+                i += 1;
+            }
+            
+            // Create <sub> element
+            let sub_element = create_subscript_element(&subscript_text);
+            children.push(JSXElementChild::JSXElement(Box::new(sub_element)));
+            
+        } else {
+            // Regular text
+            current_text.push(ch);
+            i += 1;
+        }
+    }
+    
+        // Add any remaining text
+        if !current_text.is_empty() {
+            let text_clone = current_text.clone();
+            children.push(JSXElementChild::JSXText(JSXText {
+                span: DUMMY_SP,
+                value: current_text.into(),
+                raw: text_clone.into(),
+            }));
+        }
+    
+    children
+}
+
+/// Create a superscript JSX element
+fn create_superscript_element(text: &str) -> JSXElement {
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "sup".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: vec![],
+            self_closing: false,
+            type_args: None,
+        },
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "sup".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+        children: vec![JSXElementChild::JSXText(JSXText {
+            span: DUMMY_SP,
+            value: text.into(),
+            raw: text.into(),
+        })],
+    }
+}
+
+/// Create a subscript JSX element
+fn create_subscript_element(text: &str) -> JSXElement {
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "sub".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: vec![],
+            self_closing: false,
+            type_args: None,
+        },
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "sub".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+        children: vec![JSXElementChild::JSXText(JSXText {
+            span: DUMMY_SP,
+            value: text.into(),
+            raw: text.into(),
+        })],
+    }
+}
+
 /// Helper to create a text attribute
 fn create_text_attr(name: &str, value: &str) -> JSXAttrOrSpread {
     JSXAttrOrSpread::JSXAttr(JSXAttr {
@@ -297,4 +482,13 @@ fn create_text_attr(name: &str, value: &str) -> JSXAttrOrSpread {
             raw: None,
         }))),
     })
+}
+
+// ToJsx implementation for TextNode
+impl ToJsx for TextNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // Text nodes are always rendered in HTML context (divs with text content)
+        // Use the TextNodeExt implementation
+        TextNodeExt::to_jsx(self)
+    }
 }

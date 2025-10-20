@@ -76,6 +76,44 @@ pub struct CodeGenConfig {
     pub extract_svg_paths: bool,
     /// Name of the SVG paths file (without extension)
     pub svg_paths_filename: String,
+    
+    // Vector export strategy
+    pub vector_export_strategy: VectorExportStrategy,
+    pub svg_postprocess_enabled: bool,
+    
+    // SVG container strategy
+    pub svg_container_mode: SvgContainerMode,
+    pub svg_responsive_mode: bool, // width/height 100%, viewBox set
+    
+    // Text handling
+    pub detect_superscripts: bool,
+    pub text_in_svg_mode: TextInSvgMode,
+    
+    // Responsive
+    pub enable_container_queries: bool,
+    pub responsive_breakpoint_px: f64, // default 640px
+}
+
+#[derive(Debug, Clone)]
+#[derive(PartialEq)]
+pub enum VectorExportStrategy {
+    ManualConversion,     // Use internal path conversion
+    FigmaApi,             // Use Figma's export API
+    Hybrid,               // API + postprocess, fallback to manual
+}
+
+#[derive(Debug, Clone)]
+pub enum SvgContainerMode {
+    WrapAll,              // Wrap all descendants in single SVG
+    Mixed,                // Try to preserve HTML layout where possible
+    Configurable,         // Per-node decision based on properties
+}
+
+#[derive(Debug, Clone)]
+pub enum TextInSvgMode {
+    HtmlOverlay,          // Position HTML text over SVG
+    SvgText,              // Convert to SVG <text> elements
+    Auto,                 // Decide based on complexity
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +136,14 @@ impl Default for CodeGenConfig {
             use_css_variables: false,
             extract_svg_paths: true,
             svg_paths_filename: "svg-paths".to_string(),
+            vector_export_strategy: VectorExportStrategy::Hybrid,
+            svg_postprocess_enabled: true,
+            svg_container_mode: SvgContainerMode::WrapAll,
+            svg_responsive_mode: true,
+            detect_superscripts: true,
+            text_in_svg_mode: TextInSvgMode::Auto,
+            enable_container_queries: true,
+            responsive_breakpoint_px: 640.0,
         }
     }
 }

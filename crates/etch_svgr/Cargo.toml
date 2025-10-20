@@ -1,0 +1,21 @@
+[package]
+name = "etch_svgr"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+regex = "1.7.3"
+swc_common = { workspace = true }
+swc_ecma_ast = { workspace = true }
+swc_ecma_visit = { workspace = true }
+swc_ecma_codegen = { workspace = true }
+swc_ecma_parser = { workspace = true }
+swc_atoms = { workspace = true }
+thiserror = "1.0.56"
+linked_hash_set = "0.1.4"
+lazy_static = "1.5.0"
+
+swc_xml = "14.0.0"

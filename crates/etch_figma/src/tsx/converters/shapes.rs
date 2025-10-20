@@ -1,10 +1,62 @@
-use crate::tsx::paint::{fill_to_svg_attr, stroke_to_svg_attrs};
-use figma_api::models::{EllipseNode, LineNode, RectangleNode, RegularPolygonNode, StarNode};
+use crate::svg::utils::paint::{fill_to_svg_attr, stroke_to_svg_attrs};
+use crate::tsx::converters::ToJsx;
+use figma_api::models::{
+    EllipseNode, LineNode, Rectangle, RectangleNode, RegularPolygonNode, StarNode,
+};
 use swc_common::{DUMMY_SP, SyntaxContext};
 use swc_ecma_ast::{
-    Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElement,
-    JSXElementName, JSXOpeningElement, Lit, Str,
+    Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXClosingElement,
+    JSXElement, JSXElementChild, JSXElementName, JSXOpeningElement, Lit, Str,
 };
+
+/// Wrap an SVG element in a <g> group with transform for positioning
+fn wrap_svg_element_in_group(
+    svg_element: JSXElement,
+    absolute_bounding_box: Option<&Rectangle>,
+    parent_x: f64,
+    parent_y: f64,
+) -> JSXElement {
+    let mut attrs = Vec::new();
+
+    // Calculate relative position using bounding box
+    if let Some(bbox) = absolute_bounding_box {
+        let relative_x = bbox.x - parent_x;
+        let relative_y = bbox.y - parent_y;
+
+        // Only add transform if there's actual translation
+        if relative_x.abs() > 0.01 || relative_y.abs() > 0.01 {
+            let transform = format!("translate({}, {})", relative_x, relative_y);
+            attrs.push(create_jsx_attr("transform", &transform));
+        }
+    }
+
+    // Create <g> element
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "g".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs,
+            self_closing: false,
+            type_args: None,
+        },
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "g".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+        children: vec![JSXElementChild::JSXElement(Box::new(svg_element))],
+    }
+}
 
 /// Create JSX element for Rectangle as SVG <rect>
 pub fn rectangle_to_svg_jsx(rect: &RectangleNode) -> JSXElement {
@@ -190,40 +242,37 @@ pub fn line_to_svg_jsx(line: &LineNode) -> JSXElement {
     }
 }
 
-/// Create JSX element for Star as SVG <path>
+/// Create JSX element for Star as SVG <path>  wrapped in SVG container
 pub fn star_to_svg_jsx(star: &StarNode) -> JSXElement {
-    let mut attrs = Vec::new();
+    let mut path_attrs = Vec::new();
 
     // Stars are best rendered using fill_geometry if available
     if let Some(fill_geometry) = &star.fill_geometry {
         if !fill_geometry.is_empty() {
             let path_data = &fill_geometry[0].path;
-            attrs.push(create_jsx_attr("d", path_data));
+            path_attrs.push(create_jsx_attr("d", path_data));
         }
     }
 
     // Add fill
     if let Some(fill_attr) = fill_to_svg_attr(&star.fills) {
-        attrs.push(create_jsx_attr(fill_attr.0, &fill_attr.1));
+        path_attrs.push(create_jsx_attr(fill_attr.0, &fill_attr.1));
     }
 
     // Add stroke
     for (key, value) in stroke_to_svg_attrs(&star.strokes, star.stroke_weight) {
-        attrs.push(create_jsx_attr(key, &value));
+        path_attrs.push(create_jsx_attr(key, &value));
     }
 
     // Add opacity
     if let Some(opacity) = star.opacity {
         if opacity < 1.0 {
-            attrs.push(create_jsx_attr("opacity", &opacity.to_string()));
+            path_attrs.push(create_jsx_attr("opacity", &opacity.to_string()));
         }
     }
 
-    // Add data attributes
-    attrs.push(create_jsx_attr("data-name", &star.name));
-    attrs.push(create_jsx_attr("data-node-id", &star.id));
-
-    JSXElement {
+    // Create the path element
+    let path_element = JSXElement {
         span: DUMMY_SP,
         opening: JSXOpeningElement {
             span: DUMMY_SP,
@@ -233,18 +282,62 @@ pub fn star_to_svg_jsx(star: &StarNode) -> JSXElement {
                 optional: false,
                 ctxt: SyntaxContext::empty(),
             }),
-            attrs,
+            attrs: path_attrs,
             self_closing: true,
             type_args: None,
         },
         closing: None,
         children: vec![],
+    };
+
+    // Wrap in SVG element with data attributes
+    let mut svg_attrs = Vec::new();
+
+    // Add size attributes if available
+    if let Some(size) = &star.size {
+        svg_attrs.push(create_jsx_attr("width", &size.x.to_string()));
+        svg_attrs.push(create_jsx_attr("height", &size.y.to_string()));
+        svg_attrs.push(create_jsx_attr(
+            "viewBox",
+            &format!("0 0 {} {}", size.x, size.y),
+        ));
+    }
+
+    svg_attrs.push(create_jsx_attr("fill", "none"));
+    svg_attrs.push(create_jsx_attr("xmlns", "http://www.w3.org/2000/svg"));
+    svg_attrs.push(create_jsx_attr("data-name", &star.name));
+    svg_attrs.push(create_jsx_attr("data-node-id", &star.id));
+
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "svg".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: svg_attrs,
+            self_closing: false,
+            type_args: None,
+        },
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "svg".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+        children: vec![JSXElementChild::JSXElement(Box::new(path_element))],
     }
 }
 
-/// Create JSX element for RegularPolygon as SVG <polygon>
+/// Create JSX element for RegularPolygon as SVG <path> wrapped in SVG container
 pub fn polygon_to_svg_jsx(polygon: &RegularPolygonNode) -> JSXElement {
-    let mut attrs = Vec::new();
+    let mut path_attrs = Vec::new();
 
     // Use fill_geometry to get the polygon path, then convert to points
     // For simplicity, we'll use path instead
@@ -253,33 +346,29 @@ pub fn polygon_to_svg_jsx(polygon: &RegularPolygonNode) -> JSXElement {
             let path_data = &fill_geometry[0].path;
             // For now, use path instead of polygon points
             // Converting path to points is complex
-            attrs.push(create_jsx_attr("d", path_data));
+            path_attrs.push(create_jsx_attr("d", path_data));
         }
     }
 
     // Add fill
     if let Some(fill_attr) = fill_to_svg_attr(&polygon.fills) {
-        attrs.push(create_jsx_attr(fill_attr.0, &fill_attr.1));
+        path_attrs.push(create_jsx_attr(fill_attr.0, &fill_attr.1));
     }
 
     // Add stroke
     for (key, value) in stroke_to_svg_attrs(&polygon.strokes, polygon.stroke_weight) {
-        attrs.push(create_jsx_attr(key, &value));
+        path_attrs.push(create_jsx_attr(key, &value));
     }
 
     // Add opacity
     if let Some(opacity) = polygon.opacity {
         if opacity < 1.0 {
-            attrs.push(create_jsx_attr("opacity", &opacity.to_string()));
+            path_attrs.push(create_jsx_attr("opacity", &opacity.to_string()));
         }
     }
 
-    // Add data attributes
-    attrs.push(create_jsx_attr("data-name", &polygon.name));
-    attrs.push(create_jsx_attr("data-node-id", &polygon.id));
-
-    // Use path element for polygons
-    JSXElement {
+    // Create the path element
+    let path_element = JSXElement {
         span: DUMMY_SP,
         opening: JSXOpeningElement {
             span: DUMMY_SP,
@@ -289,12 +378,56 @@ pub fn polygon_to_svg_jsx(polygon: &RegularPolygonNode) -> JSXElement {
                 optional: false,
                 ctxt: SyntaxContext::empty(),
             }),
-            attrs,
+            attrs: path_attrs,
             self_closing: true,
             type_args: None,
         },
         closing: None,
         children: vec![],
+    };
+
+    // Wrap in SVG element with data attributes
+    let mut svg_attrs = Vec::new();
+
+    // Add size attributes if available
+    if let Some(size) = &polygon.size {
+        svg_attrs.push(create_jsx_attr("width", &size.x.to_string()));
+        svg_attrs.push(create_jsx_attr("height", &size.y.to_string()));
+        svg_attrs.push(create_jsx_attr(
+            "viewBox",
+            &format!("0 0 {} {}", size.x, size.y),
+        ));
+    }
+
+    svg_attrs.push(create_jsx_attr("fill", "none"));
+    svg_attrs.push(create_jsx_attr("xmlns", "http://www.w3.org/2000/svg"));
+    svg_attrs.push(create_jsx_attr("data-name", &polygon.name));
+    svg_attrs.push(create_jsx_attr("data-node-id", &polygon.id));
+
+    JSXElement {
+        span: DUMMY_SP,
+        opening: JSXOpeningElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "svg".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+            attrs: svg_attrs,
+            self_closing: false,
+            type_args: None,
+        },
+        closing: Some(JSXClosingElement {
+            span: DUMMY_SP,
+            name: JSXElementName::Ident(Ident {
+                span: DUMMY_SP,
+                sym: "svg".into(),
+                optional: false,
+                ctxt: SyntaxContext::empty(),
+            }),
+        }),
+        children: vec![JSXElementChild::JSXElement(Box::new(path_element))],
     }
 }
 
@@ -312,4 +445,45 @@ fn create_jsx_attr(name: &str, value: &str) -> JSXAttrOrSpread {
             raw: None,
         }))),
     })
+}
+
+// ToJsx implementations for shape nodes
+impl ToJsx for RectangleNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // For now, always return the raw SVG element
+        // TODO: In SVG context, we could wrap in <g> with transform based on relative position
+        rectangle_to_svg_jsx(self)
+    }
+}
+
+impl ToJsx for EllipseNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // For now, always return the raw SVG element
+        // TODO: In SVG context, we could wrap in <g> with transform based on relative position
+        ellipse_to_svg_jsx(self)
+    }
+}
+
+impl ToJsx for LineNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // For now, always return the raw SVG element
+        // TODO: In SVG context, we could wrap in <g> with transform based on relative position
+        line_to_svg_jsx(self)
+    }
+}
+
+impl ToJsx for StarNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // For now, always return the raw SVG element
+        // TODO: In SVG context, we could wrap in <g> with transform based on relative position
+        star_to_svg_jsx(self)
+    }
+}
+
+impl ToJsx for RegularPolygonNode {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // For now, always return the raw SVG element
+        // TODO: In SVG context, we could wrap in <g> with transform based on relative position
+        polygon_to_svg_jsx(self)
+    }
 }

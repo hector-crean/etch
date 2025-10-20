@@ -18,20 +18,24 @@ pub struct NodeAnalyzer;
 
 impl NodeAnalyzer {
     /// Determines if a node should be rendered as SVG
-    pub fn should_render_as_svg(node_type: &str, has_vector_content: bool, has_text_content: bool) -> bool {
+    pub fn should_render_as_svg(
+        node_type: &str,
+        has_vector_content: bool,
+        has_text_content: bool,
+    ) -> bool {
         match node_type {
             // Always render as SVG
             "Vector" | "Ellipse" | "Line" | "Star" | "RegularPolygon" | "Rectangle" => true,
-            
+
             // Render as SVG if they contain vector content
             "Group" | "Frame" | "Component" | "Instance" => has_vector_content && !has_text_content,
-            
+
             // Never render as SVG
             "Text" | "Table" | "TableCell" | "Section" => false,
-            
+
             // Mixed content - depends on children
             "BooleanOperation" | "ShapeWithText" | "TextPath" => has_vector_content,
-            
+
             // Default to HTML
             _ => false,
         }
@@ -40,16 +44,21 @@ impl NodeAnalyzer {
     /// Determines if a node should use external SVG paths
     pub fn should_use_external_paths(_node: &str, path_complexity: PathComplexity) -> bool {
         match path_complexity {
-            PathComplexity::Simple => false, // Inline for simple paths
-            PathComplexity::Complex => true, // External for complex paths
+            PathComplexity::Simple => false,     // Inline for simple paths
+            PathComplexity::Complex => true,     // External for complex paths
             PathComplexity::VeryComplex => true, // Always external for very complex
         }
     }
 
     /// Analyzes a node's content to determine rendering strategy
-    pub fn analyze_node(node_type: &str, has_children: bool, children_are_vectors: bool, has_text: bool) -> RenderingStrategy {
+    pub fn analyze_node(
+        node_type: &str,
+        has_children: bool,
+        children_are_vectors: bool,
+        has_text: bool,
+    ) -> RenderingStrategy {
         let is_vector_node = Self::should_render_as_svg(node_type, children_are_vectors, has_text);
-        
+
         if is_vector_node {
             if has_children && children_are_vectors {
                 RenderingStrategy::SvgInline
@@ -77,7 +86,7 @@ impl PathComplexity {
     pub fn from_path_data(path_data: &str) -> Self {
         let command_count = path_data.matches(char::is_alphabetic).count();
         let length = path_data.len();
-        
+
         match (command_count, length) {
             (count, _) if count <= 3 && length < 100 => PathComplexity::Simple,
             (count, _) if count <= 10 && length < 500 => PathComplexity::Complex,
@@ -97,6 +106,8 @@ pub struct SvgConfig {
     pub optimize: bool,
     /// Whether to include viewBox
     pub include_viewbox: bool,
+    /// Maximum number of node IDs to include in a single batch request
+    pub max_batch_size: usize,
 }
 
 impl Default for SvgConfig {
@@ -106,6 +117,7 @@ impl Default for SvgConfig {
             external_path_base: "assets/svg".to_string(),
             optimize: true,
             include_viewbox: true,
+            max_batch_size: 50, // Conservative limit to avoid 413 errors
         }
     }
 }

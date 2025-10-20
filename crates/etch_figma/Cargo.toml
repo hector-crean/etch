@@ -15,10 +15,16 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
+urlencoding = { workspace = true }
 figma-api = { workspace = true }
+etch_tsx = { workspace = true }
 swc_common = { workspace = true }
 swc_ecma_ast = { workspace = true }
 swc_ecma_codegen = { workspace = true }
 swc_atoms = { workspace = true }
+swc_ecma_visit = { workspace = true }
+futures = "0.3"
+etch_svgr = { path = "../etch_svgr" }
 heck = "0.5"
 sha2 = "0.10"
+tempfile = "3.8"

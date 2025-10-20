@@ -1,6 +1,9 @@
+use crate::analyzers::responsive::ResponsiveAnalyzer;
+use crate::codegen_ext::CodeGenConfig;
 use figma_api::models::frame_node::{
-    CounterAxisAlignItems, LayoutAlign, LayoutMode, LayoutPositioning, LayoutSizingHorizontal,
-    LayoutSizingVertical, PrimaryAxisAlignItems,
+    CounterAxisAlignItems, GridChildHorizontalAlign, GridChildVerticalAlign, LayoutAlign,
+    LayoutMode, LayoutPositioning, LayoutSizingHorizontal, LayoutSizingVertical,
+    PrimaryAxisAlignItems,
 };
 use figma_api::models::{
     EllipseNode, FrameNode, GroupNode, LineNode, RectangleNode, TextNode, VectorNode,
@@ -42,6 +45,11 @@ pub trait TailwindStyleExt {
     /// Get all Tailwind styles for this frame
     fn to_tailwind(&self) -> TailwindStyles;
 
+    /// Get Tailwind styles with configuration support
+    fn to_tailwind_with_config(&self, _config: &CodeGenConfig) -> TailwindStyles {
+        self.to_tailwind()
+    }
+
     /// Get just the CSS classes as a vector
     fn to_tailwind_classes(&self) -> Vec<String> {
         self.to_tailwind().classes
@@ -54,10 +62,39 @@ pub trait TailwindStyleExt {
 
     // Specific property mappings
     fn layout_classes(&self) -> Vec<String>;
+    fn layout_classes_with_config(&self, _config: &CodeGenConfig) -> Vec<String> {
+        self.layout_classes()
+    }
     fn sizing_classes(&self) -> Vec<String>;
     fn spacing_classes(&self) -> Vec<String>;
     fn visual_classes(&self) -> Vec<String>;
     fn position_classes(&self) -> Vec<String>;
+    fn add_grid_classes(&self, _classes: &mut Vec<String>) {
+        // Default implementation - most node types don't have grid properties
+    }
+    fn get_grid_child_classes(&self) -> Vec<String> {
+        // Default implementation - most node types don't have grid child properties
+        Vec::new()
+    }
+
+    /// Get positioning classes (for outer div) - handles coordinate system relative to parent
+    /// Includes: absolute/fixed/sticky positioning, inset values (top/left/right/bottom), z-index, transforms
+    fn positioning_classes(&self) -> Vec<String> {
+        // Default implementation - most nodes don't have positioning
+        Vec::new()
+    }
+
+    /// Get layout and content classes (for inner div) - handles layout for children and content styling
+    /// Includes: flex/grid/relative, sizing, padding, gap, alignment, borders, backgrounds, etc.
+    fn layout_and_content_classes(&self) -> Vec<String> {
+        // Default implementation combines layout, sizing, spacing, and visual
+        let mut classes = Vec::new();
+        classes.extend(self.layout_classes());
+        classes.extend(self.sizing_classes());
+        classes.extend(self.spacing_classes());
+        classes.extend(self.visual_classes());
+        classes
+    }
 }
 
 impl TailwindStyleExt for FrameNode {
@@ -77,23 +114,40 @@ impl TailwindStyleExt for FrameNode {
         styles
     }
 
+    /// Get Tailwind styles with configuration support
+    fn to_tailwind_with_config(&self, config: &CodeGenConfig) -> TailwindStyles {
+        let mut styles = self.to_tailwind();
+
+        // Add responsive classes if enabled
+        if config.enable_container_queries {
+            let responsive_classes = ResponsiveAnalyzer::get_responsive_classes(self, config);
+            styles.classes.extend(responsive_classes);
+        }
+
+        styles
+    }
+
     fn layout_classes(&self) -> Vec<String> {
         let mut classes = Vec::new();
 
         // Layout mode (auto-layout direction)
         if let Some(layout_mode) = &self.layout_mode {
-            classes.push("flex".to_string());
-
             match layout_mode {
                 LayoutMode::Horizontal => {
+                    classes.push("flex".to_string());
                     classes.push("flex-row".to_string());
                 }
                 LayoutMode::Vertical => {
+                    classes.push("flex".to_string());
                     classes.push("flex-col".to_string());
                 }
-                _ => {
+                LayoutMode::Grid => {
+                    classes.push("grid".to_string());
+                    // Add grid-specific classes
+                    self.add_grid_classes(&mut classes);
+                }
+                LayoutMode::None => {
                     // For non-auto-layout frames, use relative positioning
-                    classes.pop(); // Remove flex
                     classes.push("relative".to_string());
                 }
             }
@@ -101,26 +155,165 @@ impl TailwindStyleExt for FrameNode {
             classes.push("relative".to_string());
         }
 
-        // Primary axis alignment (justify-content)
+        // Primary axis alignment (justify-content for flex, justify-items for grid)
         if let Some(primary_align) = &self.primary_axis_align_items {
             let class = match primary_align {
-                PrimaryAxisAlignItems::Min => "justify-start",
-                PrimaryAxisAlignItems::Center => "justify-center",
-                PrimaryAxisAlignItems::Max => "justify-end",
-                PrimaryAxisAlignItems::SpaceBetween => "justify-between",
+                PrimaryAxisAlignItems::Min => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "justify-items-start"
+                    } else {
+                        "justify-start"
+                    }
+                }
+                PrimaryAxisAlignItems::Center => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "justify-items-center"
+                    } else {
+                        "justify-center"
+                    }
+                }
+                PrimaryAxisAlignItems::Max => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "justify-items-end"
+                    } else {
+                        "justify-end"
+                    }
+                }
+                PrimaryAxisAlignItems::SpaceBetween => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "justify-items-stretch"
+                    } else {
+                        "justify-between"
+                    }
+                }
             };
             classes.push(class.to_string());
         }
 
-        // Counter axis alignment (align-items)
+        // Counter axis alignment (align-items for flex, align-items for grid)
         if let Some(counter_align) = &self.counter_axis_align_items {
             let class = match counter_align {
-                CounterAxisAlignItems::Min => "items-start",
-                CounterAxisAlignItems::Center => "items-center",
-                CounterAxisAlignItems::Max => "items-end",
+                CounterAxisAlignItems::Min => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "items-start"
+                    } else {
+                        "items-start"
+                    }
+                }
+                CounterAxisAlignItems::Center => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "items-center"
+                    } else {
+                        "items-center"
+                    }
+                }
+                CounterAxisAlignItems::Max => {
+                    if matches!(self.layout_mode, Some(LayoutMode::Grid)) {
+                        "items-end"
+                    } else {
+                        "items-end"
+                    }
+                }
                 CounterAxisAlignItems::Baseline => "items-baseline",
             };
             classes.push(class.to_string());
+        }
+
+        classes
+    }
+
+    /// Add grid-specific classes based on Figma grid properties
+    fn add_grid_classes(&self, classes: &mut Vec<String>) {
+        // Grid column count
+        if let Some(col_count) = self.grid_column_count {
+            if col_count > 0.0 {
+                classes.push(format!("grid-cols-{}", col_count as usize));
+            }
+        }
+
+        // Grid row count
+        if let Some(row_count) = self.grid_row_count {
+            if row_count > 0.0 {
+                classes.push(format!("grid-rows-{}", row_count as usize));
+            }
+        }
+
+        // Grid column sizing (use custom values if provided)
+        if let Some(col_sizing) = &self.grid_columns_sizing {
+            if !col_sizing.is_empty() {
+                classes.push(format!("grid-cols-[{}]", col_sizing));
+            }
+        }
+
+        // Grid row sizing (use custom values if provided)
+        if let Some(row_sizing) = &self.grid_rows_sizing {
+            if !row_sizing.is_empty() {
+                classes.push(format!("grid-rows-[{}]", row_sizing));
+            }
+        }
+
+        // Grid gaps
+        if let Some(col_gap) = self.grid_column_gap {
+            if col_gap > 0.0 {
+                classes.push(format!("gap-x-[{}px]", col_gap));
+            }
+        }
+
+        if let Some(row_gap) = self.grid_row_gap {
+            if row_gap > 0.0 {
+                classes.push(format!("gap-y-[{}px]", row_gap));
+            }
+        }
+
+        // Default grid properties if none specified
+        if self.grid_column_count.is_none() && self.grid_columns_sizing.is_none() {
+            classes.push("grid-cols-[max-content]".to_string());
+        }
+        if self.grid_row_count.is_none() && self.grid_rows_sizing.is_none() {
+            classes.push("grid-rows-[max-content]".to_string());
+        }
+    }
+
+    /// Get grid child alignment classes for individual grid items
+    fn get_grid_child_classes(&self) -> Vec<String> {
+        let mut classes = Vec::new();
+
+        // Grid child horizontal alignment
+        if let Some(horizontal_align) = &self.grid_child_horizontal_align {
+            let class = match horizontal_align {
+                GridChildHorizontalAlign::Min => "justify-self-start",
+                GridChildHorizontalAlign::Center => "justify-self-center",
+                GridChildHorizontalAlign::Max => "justify-self-end",
+                GridChildHorizontalAlign::Auto => "justify-self-start",
+            };
+            classes.push(class.to_string());
+        }
+
+        // Grid child vertical alignment
+        if let Some(vertical_align) = &self.grid_child_vertical_align {
+            let class = match vertical_align {
+                GridChildVerticalAlign::Min => "self-start",
+                GridChildVerticalAlign::Center => "self-center",
+                GridChildVerticalAlign::Max => "self-end",
+                GridChildVerticalAlign::Auto => "self-start",
+            };
+            classes.push(class.to_string());
+        }
+
+        classes
+    }
+
+    /// Get layout classes with container query support
+    fn layout_classes_with_config(&self, config: &CodeGenConfig) -> Vec<String> {
+        let mut classes = self.layout_classes();
+
+        // Add container query support
+        if config.enable_container_queries
+            && ResponsiveAnalyzer::should_add_container_query(self, config)
+        {
+            let breakpoint = ResponsiveAnalyzer::calculate_breakpoint(self, config)
+                .unwrap_or(config.responsive_breakpoint_px);
+            add_container_query_classes(self, &mut classes, breakpoint);
         }
 
         classes
@@ -304,6 +497,69 @@ impl TailwindStyleExt for FrameNode {
             if rotation != 0.0 {
                 let degrees = rotation * 180.0 / std::f64::consts::PI;
                 classes.push(format!("rotate-[{}deg]", degrees));
+            }
+        }
+
+        classes
+    }
+
+    /// Get positioning classes (outer div) - handles coordinate system relative to parent
+    fn positioning_classes(&self) -> Vec<String> {
+        let mut classes = Vec::new();
+
+        // Layout positioning (absolute/fixed)
+        if let Some(positioning) = &self.layout_positioning {
+            match positioning {
+                LayoutPositioning::Absolute => {
+                    classes.push("absolute".to_string());
+                }
+                LayoutPositioning::Auto => {
+                    // Default behavior - no class needed
+                }
+            }
+        }
+
+        // Transform (rotation) - affects positioning coordinate system
+        if let Some(rotation) = self.rotation {
+            if rotation != 0.0 {
+                let degrees = rotation * 180.0 / std::f64::consts::PI;
+                classes.push(format!("rotate-[{}deg]", degrees));
+            }
+        }
+
+        // TODO: Add inset values (top/left/right/bottom) when we have position data
+        // TODO: Add z-index when available
+
+        classes
+    }
+
+    /// Get layout and content classes (inner div) - handles layout for children and content styling
+    fn layout_and_content_classes(&self) -> Vec<String> {
+        let mut classes = Vec::new();
+
+        // Layout mode and alignment
+        classes.extend(self.layout_classes());
+
+        // Sizing (width, height, flex-grow, etc.)
+        classes.extend(self.sizing_classes());
+
+        // Spacing (padding, gap, margin)
+        classes.extend(self.spacing_classes());
+
+        // Visual properties (background, border, opacity, effects)
+        classes.extend(self.visual_classes());
+
+        // Layout align - how this element behaves within parent's layout
+        if let Some(align) = &self.layout_align {
+            let class = match align {
+                LayoutAlign::Inherit => None,
+                LayoutAlign::Stretch => Some("self-stretch"),
+                LayoutAlign::Min => Some("self-start"),
+                LayoutAlign::Center => Some("self-center"),
+                LayoutAlign::Max => Some("self-end"),
+            };
+            if let Some(class) = class {
+                classes.push(class.to_string());
             }
         }
 
@@ -593,7 +849,7 @@ impl TailwindStyleExt for TextNode {
 
         // Text color from fills
         if let Some(fills) = &self.style.fills {
-            if let Some(color) = crate::tsx::paint::extract_first_paint_color(fills) {
+            if let Some(color) = crate::svg::utils::paint::extract_first_paint_color(fills) {
                 // Use arbitrary value for exact color match
                 classes.push(format!("text-[{}]", color));
             }
@@ -637,6 +893,29 @@ impl TailwindStyleExt for GroupNode {
 
     fn position_classes(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    /// Get positioning classes (outer div) - handles coordinate system relative to parent
+    fn positioning_classes(&self) -> Vec<String> {
+        let classes = Vec::new();
+
+        // Groups may have positioning based on their context
+        // TODO: Add positioning logic when group position data is available
+
+        classes
+    }
+
+    /// Get layout and content classes (inner div) - handles layout for children and content styling
+    fn layout_and_content_classes(&self) -> Vec<String> {
+        let mut classes = Vec::new();
+
+        // Groups establish a relative coordinate system for their children
+        classes.push("relative".to_string());
+
+        // Add any visual styles if available
+        classes.extend(self.visual_classes());
+
+        classes
     }
 }
 
@@ -763,6 +1042,54 @@ fn add_text_inline_styles(text: &TextNode, styles: &mut TailwindStyles) {
             "font-['{}']",
             clean_font_family.replace('\'', "\\'")
         ));
+    }
+}
+
+/// Add container query classes for responsive behavior
+fn add_container_query_classes(frame: &FrameNode, classes: &mut Vec<String>, breakpoint: f64) {
+    // Mark as container
+    classes.push("@container".to_string());
+
+    // Add responsive classes based on layout
+    if let Some(layout_mode) = &frame.layout_mode {
+        match layout_mode {
+            LayoutMode::Horizontal => {
+                // Switch to column when narrow
+                classes.push(format!("@[<{}px]:flex-col", breakpoint));
+                classes.push(format!("@[<{}px]:items-stretch", breakpoint));
+            }
+            LayoutMode::Vertical => {
+                // Could switch to row when wide
+                classes.push(format!("@[>{}px]:flex-row", breakpoint * 2.0));
+            }
+            _ => {}
+        }
+    }
+
+    // Adjust gap for narrow containers
+    if let Some(gap) = frame.item_spacing {
+        if gap > 16.0 {
+            classes.push(format!("@[<{}px]:gap-[{}px]", breakpoint, gap / 2.0));
+        }
+    }
+
+    // Add responsive padding adjustments
+    let pt = frame.padding_top.unwrap_or(0.0);
+    let pr = frame.padding_right.unwrap_or(0.0);
+    let pb = frame.padding_bottom.unwrap_or(0.0);
+    let pl = frame.padding_left.unwrap_or(0.0);
+
+    if pt > 20.0 {
+        classes.push(format!("@[<{}px]:pt-[{}px]", breakpoint, pt / 2.0));
+    }
+    if pr > 20.0 {
+        classes.push(format!("@[<{}px]:pr-[{}px]", breakpoint, pr / 2.0));
+    }
+    if pb > 20.0 {
+        classes.push(format!("@[<{}px]:pb-[{}px]", breakpoint, pb / 2.0));
+    }
+    if pl > 20.0 {
+        classes.push(format!("@[<{}px]:pl-[{}px]", breakpoint, pl / 2.0));
     }
 }
 

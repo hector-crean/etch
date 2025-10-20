@@ -1,5 +1,8 @@
+pub mod analyzers;
 pub mod html;
+pub mod svg;
 pub mod tsx;
+pub mod unified_pipeline;
 
 pub mod codegen_ext;
 pub mod tailwind_ext;
@@ -14,6 +17,9 @@ pub use tailwind_ext::{TailwindStyleExt, TailwindStyles};
 // Re-export generators
 pub use html::generator::HtmlGenerator;
 pub use tsx::generator::TsxGenerator;
+
+// Re-export unified pipeline
+pub use unified_pipeline::{UnifiedPipeline, UnifiedPipelineBuilder};
 
 use figma_api::models::SubcanvasNode;
 

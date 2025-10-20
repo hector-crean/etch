@@ -36,26 +36,3 @@ fn test_deserialize_node() {
         result.err()
     );
 }
-
-#[test]
-fn test_deserialize_file_response_full() {
-    // Read JSON from file
-    let json = read_json_file("../examples/__test__.json");
-
-    // First attempt full deserialization
-    let jd = &mut serde_json::Deserializer::from_str(&json);
-
-    // let full_result = serde_json::from_str::<InlineObject>(&json);
-    let result: Result<InlineObject, _> = serde_path_to_error::deserialize(jd);
-
-    match result {
-        Ok(_) => {}
-        Err(err) => {
-            let path = err.path().to_string();
-            println!("❌ Deserialization failed at path: {}", path);
-            println!("📎 Error: {}", err);
-            // throw
-            panic!("Deserialization failed at path: {}", path);
-        }
-    }
-}

@@ -1,4 +1,4 @@
-use super::path_registry::PathRegistry;
+use crate::svg::path_registry::PathRegistry;
 use super::visitor::TsxVisitor;
 use crate::codegen_ext::{CodeGenConfig, CodeGenResult, CodeGenerator};
 use heck::ToPascalCase;
@@ -112,11 +112,16 @@ impl CodeGenerator<TsxVisitor> for TsxGenerator {
             self.generate_single_file(visitor, &mut result)?;
         }
 
-        // Generate SVG paths file if any paths were registered
-        if self.should_extract_paths() && self.path_registry.borrow().has_paths() {
-            let paths_filename = format!("{}.ts", self.svg_paths_filename());
-            let paths_content = self.path_registry.borrow().generate_ts_file();
-            result.add_file(PathBuf::from(paths_filename), paths_content);
+        // Generate SVG paths file from the visitor's SVG grouping manager
+        if self.should_extract_paths() {
+            let paths_content = visitor
+                .get_svg_grouping_manager()
+                .generate_combined_path_file();
+            if !paths_content.contains("export default {\n};\n") {
+                // Only add the file if it has actual path data
+                let paths_filename = format!("{}.ts", self.svg_paths_filename());
+                result.add_file(PathBuf::from(paths_filename), paths_content);
+            }
         }
 
         Ok(result)

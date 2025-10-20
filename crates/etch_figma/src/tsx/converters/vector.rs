@@ -1,12 +1,15 @@
-use crate::tsx::svg_strategy::PathComplexity;
-use crate::tsx::{ToJsx, figma_svg_export::FigmaSvgExporter};
+use crate::svg::strategy::PathComplexity;
+use crate::tsx::converters::ToJsx;
+use crate::tsx::svgr::exporter::FigmaSvgExporter;
 use figma_api::models::VectorNode;
 use swc_atoms::Atom;
 use swc_ecma_ast::JSXElement;
 
 /// Enhanced vector node conversion with SVG export support
 impl ToJsx for VectorNode {
-    fn to_jsx(&self) -> JSXElement {
+    fn to_jsx_with_context(&self, _context: super::RenderContext) -> JSXElement {
+        // TODO: Vector nodes could potentially render differently in SVG context
+        // For now, always use HTML context rendering (wrapped in divs)
         // Determine strategy: inline simple paths, external for complex
         if let Some(fill_geometry) = &self.fill_geometry {
             if !fill_geometry.is_empty() {
@@ -39,7 +42,7 @@ pub async fn create_vector_jsx_with_svg_export(
     vector: &VectorNode,
     exporter: &mut FigmaSvgExporter,
     file_key: &str,
-) -> Result<JSXElement, crate::tsx::figma_svg_export::SvgExportError> {
+) -> Result<JSXElement, crate::tsx::svgr::exporter::SvgExportError> {
     use swc_common::{DUMMY_SP, SyntaxContext};
     use swc_ecma_ast::{
         Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXClosingElement,
@@ -143,7 +146,7 @@ pub async fn create_vector_jsx_with_svg_export(
 
 /// Creates an inline SVG element with path data directly embedded
 fn create_inline_vector_jsx(vector: &VectorNode, path_data: &str) -> JSXElement {
-    use crate::tsx::paint::{fill_to_svg_attr, stroke_to_svg_attrs};
+    use crate::svg::utils::paint::{fill_to_svg_attr, stroke_to_svg_attrs};
     use swc_common::{DUMMY_SP, SyntaxContext};
     use swc_ecma_ast::{
         Ident, JSXClosingElement, JSXElementChild, JSXElementName, JSXOpeningElement,
@@ -299,19 +302,30 @@ fn create_vector_jsx_placeholder(vector: &VectorNode) -> JSXElement {
 }
 
 /// Parses SVG content and converts it to JSX children
-fn parse_svg_content_to_jsx(_svg_content: &str) -> Vec<swc_ecma_ast::JSXElementChild> {
-    // This is a simplified implementation
-    // In practice, you'd want to parse the SVG content and convert each element
-    // to appropriate JSX elements
-
-    // For now, return a placeholder
-    vec![swc_ecma_ast::JSXElementChild::JSXText(
-        swc_ecma_ast::JSXText {
-            span: swc_common::DUMMY_SP,
-            value: "<!-- SVG content would be parsed here -->".into(),
-            raw: Atom::new(""),
-        },
-    )]
+fn parse_svg_content_to_jsx(svg_content: &str) -> Vec<swc_ecma_ast::JSXElementChild> {
+    use crate::svg::parser::SvgParser;
+    
+    // Clean the SVG content first
+    let cleaned_svg = SvgParser::clean_svg_content(svg_content);
+    
+    // Try to parse the SVG content to proper JSX
+    match SvgParser::parse_svg_to_jsx(&cleaned_svg) {
+        Ok(jsx_element) => {
+            log::debug!("Successfully parsed SVG content to JSX in vector.rs");
+            vec![swc_ecma_ast::JSXElementChild::JSXElement(Box::new(jsx_element))]
+        }
+        Err(e) => {
+            log::warn!("Failed to parse SVG content to JSX in vector.rs: {}", e);
+            // Fallback: return a placeholder
+            vec![swc_ecma_ast::JSXElementChild::JSXText(
+                swc_ecma_ast::JSXText {
+                    span: swc_common::DUMMY_SP,
+                    value: format!("<!-- SVG parsing failed: {} -->", e).into(),
+                    raw: Atom::new(""),
+                },
+            )]
+        }
+    }
 }
 
 /// Helper to create a JSX attribute for vector elements

@@ -45,7 +45,7 @@ pub fn rgba_to_hex(color: &Rgba) -> String {
 }
 
 /// Convert gradient to CSS
-fn gradient_to_css(gradient: &GradientPaint) -> String {
+pub fn gradient_to_css(gradient: &GradientPaint) -> String {
     // Extract gradient stops
     let stops = gradient
         .gradient_stops
