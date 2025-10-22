@@ -1,8 +1,7 @@
 use crate::codegen_ext::{CodeGenConfig, CodeGenResult};
 use crate::svg::strategy::SvgConfig;
 use crate::tsx::generator::TsxGenerator;
-use crate::tsx::svgr::async_bridge::{SvgWorkerPool, create_svg_channels};
-use crate::tsx::svgr::exporter::FigmaSvgExporter;
+use crate::tsx::svgr::async_processor::AsyncSvgProcessor;
 use crate::tsx::visitor::TsxVisitor;
 use crate::walker::Walker;
 use figma_api::models::CanvasNode;
@@ -50,132 +49,27 @@ impl UnifiedPipeline {
         Ok(processed_result)
     }
 
-    /// Generate TSX from Figma data
+    /// Generate TSX from Figma data using the simplified async processor
     async fn generate_figma_tsx(
         &self,
         canvas: &CanvasNode,
     ) -> Result<CodeGenResult, Box<dyn std::error::Error>> {
-        // Check if we should use async SVG processing
-        let use_async_svg = self.figma_config.vector_export_strategy
-            == crate::codegen_ext::VectorExportStrategy::FigmaApi
-            && self.file_key.is_some();
+        info!("Generating TSX from Figma canvas");
 
-        if use_async_svg {
-            self.generate_figma_tsx_async(canvas).await
-        } else {
-            self.generate_figma_tsx_sync(canvas).await
-        }
-    }
-
-    /// Generate TSX using async SVG processing
-    async fn generate_figma_tsx_async(
-        &self,
-        canvas: &CanvasNode,
-    ) -> Result<CodeGenResult, Box<dyn std::error::Error>> {
-        info!("Using async SVG processing for Figma generation");
-
-        // Create channels for async SVG processing
-        let (request_tx, request_rx, response_tx, mut response_rx) = create_svg_channels();
-
-        // Create SVG exporter and worker pool
-        let exporter = FigmaSvgExporter::new(SvgConfig::default());
-        let worker_pool = SvgWorkerPool::new(request_rx, response_tx, exporter, 10); // Max 10 concurrent requests
-
-        // Spawn worker pool in background
-        let worker_handle = tokio::spawn(async move {
-            if let Err(e) = worker_pool.run().await {
-                log::error!("SVG worker pool failed: {}", e);
-            }
-        });
-
-        // Create visitor with async channel (clone the sender for later use)
-        let request_tx_clone = request_tx.clone();
-        let mut visitor = TsxVisitor::with_async_svg_channel(self.figma_config.clone(), request_tx);
-
-        if let Some(file_key) = &self.file_key {
-            visitor.set_file_key(file_key.clone());
-        }
-
-        // Run synchronous visitor traversal
-        info!("Starting synchronous visitor traversal");
-        let mut tsx_visitor = Walker::new(visitor).walk_canvas(canvas);
-
-        // Resolve pending vectors with async responses
-        info!("Resolving pending vectors with async responses");
-        tsx_visitor
-            .resolve_pending_vectors(&mut response_rx)
-            .await
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
-
-        // Process SVG groups to optimize SVG containers and positioning
-        tsx_visitor.process_svg_groups();
-
-        // Close the request channel to signal the worker pool to stop
-        drop(request_tx_clone);
-        info!("Closing SVG request channel to signal worker pool shutdown");
-
-        // Wait for worker pool to complete with timeout
-        use tokio::time::{Duration, timeout};
-        let worker_timeout = Duration::from_secs(60); // 60 second timeout for worker pool shutdown
-
-        match timeout(worker_timeout, worker_handle).await {
-            Ok(Ok(())) => {
-                info!("✓ SVG worker pool shutdown completed successfully");
-            }
-            Ok(Err(e)) => {
-                log::error!("SVG worker pool task panicked: {}", e);
-            }
-            Err(_) => {
-                log::warn!(
-                    "⚠ SVG worker pool shutdown timed out after {} seconds - some tasks may still be running",
-                    worker_timeout.as_secs()
-                );
-            }
-        }
-
-        // Create TSX generator with configuration
-        let tsx_generator = TsxGenerator::new()
-            .with_react_imports(true)
-            .with_separate_files(true)
-            .with_exportable_only(true)
-            .with_config(self.figma_config.clone());
-
-        // Generate code
-        let codegen_system = crate::codegen_ext::CodeGenSystem::new(
-            tsx_visitor,
-            tsx_generator,
-            self.figma_config.clone(),
-        );
-        let result = codegen_system.generate()?;
-
-        Ok(result)
-    }
-
-    /// Generate TSX using synchronous processing (fallback)
-    async fn generate_figma_tsx_sync(
-        &self,
-        canvas: &CanvasNode,
-    ) -> Result<CodeGenResult, Box<dyn std::error::Error>> {
-        info!("Using synchronous SVG processing for Figma generation");
-
-        // Create visitor with configuration and file key
+        // Create visitor with configuration
         let mut visitor = TsxVisitor::with_config(self.figma_config.clone());
         if let Some(file_key) = &self.file_key {
             visitor.set_file_key(file_key.clone());
         }
 
-        // Pre-fetch SVG data for vector nodes if using FigmaApi strategy
-        if self.figma_config.vector_export_strategy
-            == crate::codegen_ext::VectorExportStrategy::FigmaApi
-        {
-            if let Some(file_key) = &self.file_key {
-                self.prefetch_svg_data(canvas, file_key, &mut visitor)
-                    .await?;
-            }
-        }
-
-        // Extract ALL node components using the unified visitor with configuration
+        // First pass: traverse the canvas to collect all vector nodes
         let mut tsx_visitor = Walker::new(visitor).walk_canvas(canvas);
+
+        // Process any vectors that need async SVG fetching
+        if !tsx_visitor.pending_vectors().is_empty() && self.file_key.is_some() {
+            info!("Processing {} vectors with async SVG processor", tsx_visitor.pending_vectors().len());
+            self.process_vectors_async(&mut tsx_visitor).await?;
+        }
 
         // Process SVG groups to optimize SVG containers and positioning
         tsx_visitor.process_svg_groups();
@@ -197,6 +91,56 @@ impl UnifiedPipeline {
 
         Ok(result)
     }
+
+    /// Process vectors using the intelligent async processor
+    async fn process_vectors_async(
+        &self,
+        tsx_visitor: &mut crate::tsx::visitor::TsxVisitor,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let file_key = self.file_key.as_ref()
+            .ok_or("File key required for vector processing")?;
+
+        // Create async processor with intelligent categorization
+        let mut processor = AsyncSvgProcessor::new(
+            file_key.clone(),
+            SvgConfig::default(),
+        )
+        .with_concurrency(10)
+        .with_timeout(std::time::Duration::from_secs(60));
+
+        // Extract pending vectors from the visitor
+        let pending_vectors = std::mem::take(tsx_visitor.pending_vectors_mut());
+        
+        if pending_vectors.is_empty() {
+            return Ok(());
+        }
+
+        // Process all vectors intelligently (API + inline)
+        let result = processor.process_vectors(pending_vectors).await?;
+
+        info!(
+            "Vector processing completed: {}/{} successful ({}ms, batch: {})",
+            result.stats.successful,
+            result.stats.total_requested,
+            result.stats.processing_time_ms,
+            result.stats.batch_prefetch_used
+        );
+
+        // Update JSX elements with the processed SVG content
+        for (node_id, svg_content) in result.svg_content {
+            let jsx_element = tsx_visitor.create_jsx_from_svg_content(&svg_content);
+            tsx_visitor.jsx_elements_mut().insert(node_id.clone(), jsx_element);
+            tsx_visitor.placeholder_jsx_mut().remove(&node_id);
+        }
+
+        // Handle any errors - these are already logged by the processor
+        if !result.errors.is_empty() {
+            info!("Some vectors failed processing but placeholders remain in place");
+        }
+
+        Ok(())
+    }
+
 
     /// Post-process generated TSX files using etch_tsx visitors
     fn postprocess_tsx(
@@ -253,27 +197,6 @@ impl UnifiedPipeline {
         // Convert output to string
         let processed_tsx = String::from_utf8(output)?;
         Ok(processed_tsx)
-    }
-
-    /// Pre-fetch SVG data for all vector nodes in the canvas
-    async fn prefetch_svg_data(
-        &self,
-        _canvas: &CanvasNode,
-        _file_key: &str,
-        _visitor: &mut TsxVisitor,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        // For now, we'll skip pre-fetching and implement a simpler approach
-        // The visitor will handle the strategy selection and fallback appropriately
-        info!(
-            "Skipping pre-fetch for now - vectors will use inline conversion with API strategy detection"
-        );
-
-        // We could implement actual pre-fetching here by:
-        // 1. Traversing the canvas to find all vector nodes
-        // 2. Calling visitor.get_svg_exporter().fetch_and_cache_svg() for each vector
-        // 3. But this requires complex node traversal that we're avoiding for now
-
-        Ok(())
     }
 }
 

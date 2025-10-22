@@ -55,9 +55,15 @@ async fn process_canvas(
     canvas: &figma_api::models::CanvasNode,
     file_key: &str,
 ) -> Result<etch_figma::CodeGenResult, Box<dyn std::error::Error>> {
+
+    let mac_path_buf = "/Users/hectorcrean/typescript/figma-make/src/app";
+    let windows_path_buf = "C:\\Users\\Hector.C\\typescript\\figma-make\\src\\app";
     // Configure output directory with new features
-    let output_dir =
-        PathBuf::from("C:\\Users\\Hector.C\\typescript\\figma-make\\src\\app").join(&canvas.name);
+    let output_dir = if cfg!(target_os = "windows") {
+        PathBuf::from(windows_path_buf).join(&canvas.name)
+    } else {
+        PathBuf::from(mac_path_buf).join(&canvas.name)
+    };
 
     let config = CodeGenConfig {
         output_dir: output_dir.clone(),

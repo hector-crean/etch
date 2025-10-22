@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use swc_ecma_ast::{JSXElement, JSXElementChild, JSXElementName};
 
 use super::converters::ToJsx;
-use super::svgr::async_bridge::{SvgBridgeError, SvgRequest, SvgResponse};
 use super::svgr::exporter::FigmaSvgExporter;
 use super::svgr::grouper::{GroupedSvgElement, SvgGroupingManager};
 use crate::analyzers::svg_container::{ContainerAnalysis, SvgContainerAnalyzer};
@@ -20,7 +19,6 @@ use crate::svg::strategy::SvgConfig;
 use crate::tailwind_ext::TailwindStyles;
 use crate::walker::{NodeContext, NodeVisitor};
 use swc_atoms::Atom;
-use tokio::sync::mpsc;
 
 /// Positioning strategy for elements based on their parent's layout mode
 #[derive(Debug, Clone, PartialEq)]
@@ -68,8 +66,6 @@ pub struct TsxVisitor {
     container_analyses: HashMap<String, ContainerAnalysis>,
     /// Global configuration
     config: Option<CodeGenConfig>,
-    /// Channel for sending SVG requests to async worker
-    svg_request_tx: Option<mpsc::UnboundedSender<SvgRequest>>,
     /// Track vectors awaiting SVG data
     pending_vectors: HashMap<String, VectorNode>,
     /// Store temporary placeholder JSX elements
@@ -100,7 +96,6 @@ impl TsxVisitor {
             svg_container_mode: SvgContainerMode::WrapAll,
             container_analyses: HashMap::new(),
             config: None,
-            svg_request_tx: None,
             pending_vectors: HashMap::new(),
             placeholder_jsx: HashMap::new(),
             svg_grouping_manager: SvgGroupingManager::new(),
@@ -126,7 +121,6 @@ impl TsxVisitor {
             svg_container_mode: SvgContainerMode::WrapAll,
             container_analyses: HashMap::new(),
             config: None,
-            svg_request_tx: None,
             pending_vectors: HashMap::new(),
             placeholder_jsx: HashMap::new(),
             svg_grouping_manager: SvgGroupingManager::new(),
@@ -152,7 +146,6 @@ impl TsxVisitor {
             svg_container_mode: config.svg_container_mode.clone(),
             container_analyses: HashMap::new(),
             config: Some(config),
-            svg_request_tx: None,
             pending_vectors: HashMap::new(),
             placeholder_jsx: HashMap::new(),
             svg_grouping_manager: SvgGroupingManager::new(),
@@ -165,35 +158,6 @@ impl TsxVisitor {
         self.file_key = Some(file_key);
     }
 
-    /// Create visitor with async SVG channel
-    pub fn with_async_svg_channel(
-        config: CodeGenConfig,
-        tx: mpsc::UnboundedSender<SvgRequest>,
-    ) -> Self {
-        Self {
-            jsx_elements: HashMap::new(),
-            node_styles: HashMap::new(),
-            node_types: HashMap::new(),
-            parent_child_map: HashMap::new(),
-            root_nodes: Vec::new(),
-            parent_stack: Vec::new(),
-            node_names: HashMap::new(),
-            exportable_nodes: HashMap::new(),
-            svg_exporter: FigmaSvgExporter::new(SvgConfig::default()),
-            file_key: None,
-            rendering_strategies: HashMap::new(),
-            vector_export_config: Some(VectorExportConfig::from(&config)),
-            svg_container_mode: config.svg_container_mode.clone(),
-            container_analyses: HashMap::new(),
-            config: Some(config),
-            svg_request_tx: Some(tx),
-            pending_vectors: HashMap::new(),
-            placeholder_jsx: HashMap::new(),
-            svg_grouping_manager: SvgGroupingManager::new(),
-            grouped_svg_nodes: std::collections::HashSet::new(),
-            svg_group_counter: 0,
-        }
-    }
 
     /// Get a mutable reference to the SVG exporter
     pub fn get_svg_exporter(&mut self) -> &mut FigmaSvgExporter {
@@ -205,164 +169,6 @@ impl TsxVisitor {
         self.svg_exporter = svg_exporter;
     }
 
-    /// Resolve pending vectors with fetched SVG data
-    pub async fn resolve_pending_vectors(
-        &mut self,
-        response_rx: &mut mpsc::UnboundedReceiver<SvgResponse>,
-    ) -> Result<(), SvgBridgeError> {
-        log::info!("Resolving {} pending vectors", self.pending_vectors.len());
-
-        // If there are no pending vectors, return immediately
-        if self.pending_vectors.is_empty() {
-            log::info!("No pending vectors to resolve");
-            return Ok(());
-        }
-
-        let total_pending = self.pending_vectors.len();
-
-        // Try batch prefetching first if we have a file key
-        if let Some(file_key) = &self.file_key {
-            let node_ids: Vec<&str> = self.pending_vectors.keys().map(|s| s.as_str()).collect();
-            log::info!("Attempting batch prefetch for {} vectors", node_ids.len());
-
-            match self
-                .svg_exporter
-                .fetch_and_cache_svg_batch(file_key, &node_ids)
-                .await
-            {
-                Ok(()) => {
-                    log::info!("Batch prefetch successful, processing cached results");
-                    // Process all cached results
-                    let mut resolved_count = 0;
-                    for (node_id, vector) in self.pending_vectors.iter() {
-                        let cache_key = format!("{}_{}", file_key, node_id);
-                        if let Some(svg_result) = self.svg_exporter.svg_cache.get(&cache_key) {
-                            let jsx_element =
-                                self.create_jsx_from_svg_content(&svg_result.svg_content);
-                            self.jsx_elements.insert(node_id.clone(), jsx_element);
-                            self.placeholder_jsx.remove(node_id);
-                            resolved_count += 1;
-                        } else {
-                            log::warn!(
-                                "Vector {} not found in cache after batch prefetch",
-                                node_id
-                            );
-                            let fallback_jsx = create_inline_vector_jsx_element(vector);
-                            self.jsx_elements.insert(node_id.clone(), fallback_jsx);
-                            self.placeholder_jsx.remove(node_id);
-                            resolved_count += 1;
-                        }
-                    }
-
-                    log::info!(
-                        "Batch prefetch resolved {}/{} pending vectors ({}% success rate)",
-                        resolved_count,
-                        total_pending,
-                        if total_pending > 0 {
-                            (resolved_count * 100) / total_pending
-                        } else {
-                            100
-                        }
-                    );
-
-                    // Clear all pending vectors
-                    self.pending_vectors.clear();
-                    return Ok(());
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Batch prefetch failed: {}, falling back to individual requests",
-                        e
-                    );
-                }
-            }
-        }
-
-        let mut resolved_count = 0;
-
-        // Add timeout to prevent infinite hanging
-        use tokio::time::{Duration, timeout};
-        let timeout_duration = Duration::from_secs(60); // 60 second timeout for all responses
-
-        loop {
-            let response_future = response_rx.recv();
-            match timeout(timeout_duration, response_future).await {
-                Ok(Some(response)) => {
-                    match response.result {
-                        Ok(svg_result) => {
-                            // Update the JSX element with real SVG content
-                            if self.placeholder_jsx.remove(&response.node_id).is_some() {
-                                let real_jsx =
-                                    self.create_jsx_from_svg_content(&svg_result.svg_content);
-                                self.jsx_elements.insert(response.node_id.clone(), real_jsx);
-                                resolved_count += 1;
-                                log::debug!(
-                                    "Resolved vector {} with SVG content",
-                                    response.node_id
-                                );
-                            }
-                        }
-                        Err(e) => {
-                            log::warn!(
-                                "Failed to fetch SVG for vector {}: {}",
-                                response.node_id,
-                                e
-                            );
-                            // Keep the placeholder or fall back to inline conversion
-                            if let Some(vector) = self.pending_vectors.get(&response.node_id) {
-                                let fallback_jsx = create_inline_vector_jsx_element(vector);
-                                self.jsx_elements
-                                    .insert(response.node_id.clone(), fallback_jsx);
-                                self.placeholder_jsx.remove(&response.node_id);
-                                resolved_count += 1;
-                            }
-                        }
-                    }
-
-                    // Remove from pending vectors
-                    self.pending_vectors.remove(&response.node_id);
-
-                    // Check if we've resolved all pending vectors
-                    if resolved_count >= total_pending {
-                        break;
-                    }
-                }
-                Ok(None) => {
-                    log::warn!("Response channel closed unexpectedly");
-                    break;
-                }
-                Err(_) => {
-                    log::error!("Timeout waiting for SVG responses");
-                    break;
-                }
-            }
-        }
-
-        log::info!(
-            "Resolved {}/{} pending vectors ({}% success rate)",
-            resolved_count,
-            total_pending,
-            if total_pending > 0 {
-                (resolved_count * 100) / total_pending
-            } else {
-                100
-            }
-        );
-
-        // Clear any remaining pending vectors (shouldn't happen in normal flow)
-        if !self.pending_vectors.is_empty() {
-            log::warn!(
-                "{} vectors still pending after resolution",
-                self.pending_vectors.len()
-            );
-            for (node_id, vector) in self.pending_vectors.drain() {
-                let fallback_jsx = create_inline_vector_jsx_element(&vector);
-                self.jsx_elements.insert(node_id, fallback_jsx);
-            }
-        }
-
-        Ok(())
-    }
 
     /// Create placeholder JSX element for async SVG loading
     fn create_svg_placeholder_jsx(&self, vector: &VectorNode) -> JSXElement {
@@ -474,33 +280,9 @@ impl TsxVisitor {
         }
     }
 
-    /// Create JSX element using cached SVG data from Figma API
-    fn create_svg_external_jsx(&mut self, vector: &VectorNode) -> JSXElement {
-        // Try to get cached SVG data first
-        if let Some(file_key) = &self.file_key {
-            let cache_key = format!("{}_{}", file_key, vector.id);
-            if let Some(svg_result) = self.svg_exporter.svg_cache.get(&cache_key) {
-                // Use the cached SVG content and add to grouping
-                let parent_id = self.get_current_parent_id();
-                let svg_content = svg_result.svg_content.clone();
-                self.add_svg_to_grouping(vector, &svg_content, &parent_id);
-                return self.create_jsx_from_svg_content(&svg_content);
-            }
-
-            // If not cached, try to fetch it synchronously (this is a limitation of the visitor pattern)
-            // For now, we'll fall back to inline conversion and log that we should have used the API
-            log::warn!(
-                "Vector {} should use Figma API but on-demand fetching not implemented yet, falling back to inline conversion",
-                vector.id
-            );
-        }
-
-        // Fallback to inline conversion
-        create_inline_vector_jsx_element(vector)
-    }
 
     /// Create JSX element from SVG content
-    fn create_jsx_from_svg_content(&self, svg_content: &str) -> JSXElement {
+    pub fn create_jsx_from_svg_content(&self, svg_content: &str) -> JSXElement {
         use crate::svg::parser::SvgParser;
         use swc_common::{DUMMY_SP, SyntaxContext};
         use swc_ecma_ast::*;
@@ -599,6 +381,26 @@ impl TsxVisitor {
     /// Get all generated JSX elements (flat map for debugging)
     pub fn jsx_elements(&self) -> &HashMap<String, JSXElement> {
         &self.jsx_elements
+    }
+
+    /// Get mutable access to JSX elements (for async processing)
+    pub fn jsx_elements_mut(&mut self) -> &mut HashMap<String, JSXElement> {
+        &mut self.jsx_elements
+    }
+
+    /// Get pending vectors that need async processing
+    pub fn pending_vectors(&self) -> &HashMap<String, VectorNode> {
+        &self.pending_vectors
+    }
+
+    /// Get mutable access to pending vectors
+    pub fn pending_vectors_mut(&mut self) -> &mut HashMap<String, VectorNode> {
+        &mut self.pending_vectors
+    }
+
+    /// Get mutable access to placeholder JSX elements
+    pub fn placeholder_jsx_mut(&mut self) -> &mut HashMap<String, JSXElement> {
+        &mut self.placeholder_jsx
     }
 
     /// Get the SVG grouping manager for accessing path registries
@@ -1385,12 +1187,11 @@ impl NodeVisitor for TsxVisitor {
         let jsx_element = match strategy {
             RenderingStrategy::SvgExternal => {
                 log::debug!("Using SvgExternal strategy for vector {}", vector.id);
-                // If we have both async channel and file key, we can do batch prefetching
-                // So we'll just store the vector as pending and create a placeholder
-                // The batch prefetching will handle all the API calls later
-                if let (Some(_tx), Some(_file_key)) = (&self.svg_request_tx, &self.file_key) {
+                // Always store vectors that should use API as pending
+                // The AsyncSvgProcessor will handle them intelligently later
+                if self.file_key.is_some() {
                     log::debug!(
-                        "Batch prefetching available, storing vector {} as pending",
+                        "Storing vector {} as pending for async processing",
                         vector.id
                     );
                     // Store vector as pending and create placeholder
@@ -1402,28 +1203,11 @@ impl NodeVisitor for TsxVisitor {
                     placeholder
                 } else {
                     log::debug!(
-                        "No async channel available for vector {}, using sync method",
+                        "No file key available for vector {}, falling back to inline",
                         vector.id
                     );
-                    // No async channel available, use cached SVG data from Figma API
-                    let jsx_element = self.create_svg_external_jsx(vector);
-
-                    // If we successfully got SVG content, add it to the grouping manager
-                    if let Some(file_key) = &self.file_key {
-                        let cache_key = format!("{}_{}", file_key, vector.id);
-                        if let Some(svg_result) = self.svg_exporter.svg_cache.get(&cache_key) {
-                            // Get the current parent from the stack
-                            let parent_id = self
-                                .parent_stack
-                                .last()
-                                .cloned()
-                                .unwrap_or_else(|| "root".to_string());
-                            let svg_content = svg_result.svg_content.clone();
-                            self.add_svg_to_grouping(vector, &svg_content, &parent_id);
-                        }
-                    }
-
-                    jsx_element
+                    // No file key available, fall back to inline conversion
+                    create_inline_vector_jsx_element(vector)
                 }
             }
             RenderingStrategy::SvgInline => {
