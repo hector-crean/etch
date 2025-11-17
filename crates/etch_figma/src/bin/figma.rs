@@ -3,7 +3,7 @@ use std::fs;
 
 use etch_figma::{
     CodeGenConfig, UnifiedPipelineBuilder,
-    codegen_ext::{SvgContainerMode, TextInSvgMode, VectorExportStrategy},
+    core::config::{SvgContainerMode, TextInSvgMode, VectorExportStrategy},
 };
 use figma_api::apis::{configuration::Configuration, files_api};
 use log::info;
@@ -55,7 +55,6 @@ async fn process_canvas(
     canvas: &figma_api::models::CanvasNode,
     file_key: &str,
 ) -> Result<etch_figma::CodeGenResult, Box<dyn std::error::Error>> {
-
     let mac_path_buf = "/Users/hectorcrean/typescript/figma-make/src/app";
     let windows_path_buf = "C:\\Users\\Hector.C\\typescript\\figma-make\\src\\app";
     // Configure output directory with new features

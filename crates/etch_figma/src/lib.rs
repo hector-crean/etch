@@ -1,25 +1,134 @@
-pub mod analyzers;
-pub mod html;
-pub mod svg;
-pub mod tsx;
-pub mod unified_pipeline;
+//! # Etch Figma - Convert Figma designs to React/TSX
+//!
+//! This library converts Figma design files into production-ready React components
+//! with Tailwind CSS styling.
+//!
+//! ## Architecture
+//!
+//! The library is organized into several key modules:
+//!
+//! - **`core`** - Core abstractions (walker, visitor trait, config)
+//! - **`analysis`** - Pre-conversion analysis of Figma data
+//! - **`conversion`** - Transform Figma nodes to intermediate representations
+//! - **`generators`** - Generate output files (TSX, HTML, etc.)
+//! - **`pipeline`** - High-level orchestration and builder pattern
+//! - **`extensions`** - Optional utilities (Tailwind helpers, etc.)
+//!
+//! ## Quick Start
+//!
+//! ```rust,ignore
+//! use etch_figma::pipeline::UnifiedPipelineBuilder;
+//! use etch_figma::core::CodeGenConfig;
+//!
+//! let config = CodeGenConfig::default();
+//! let mut pipeline = UnifiedPipelineBuilder::new()
+//!     .with_figma_config(config)
+//!     .with_file_key("your_figma_file_key")
+//!     .build();
+//!
+//! let result = pipeline.process_canvas(&canvas).await?;
+//! result.write_to_filesystem(Path::new("./generated"))?;
+//! ```
+//!
+//! ## Custom Visitor Example
+//!
+//! ```rust,ignore
+//! use etch_figma::core::{Walker, NodeVisitor, NodeContext};
+//! use figma_api::models::FrameNode;
+//!
+//! struct MyVisitor {
+//!     frame_count: usize,
+//! }
+//!
+//! impl NodeVisitor for MyVisitor {
+//!     fn visit_frame(&mut self, frame: &FrameNode, context: &NodeContext) {
+//!         println!("Found frame: {}", frame.name);
+//!         self.frame_count += 1;
+//!     }
+//! }
+//!
+//! let visitor = MyVisitor { frame_count: 0 };
+//! let walker = Walker::new(visitor);
+//! let completed = walker.walk_canvas(&canvas);
+//! ```
+//!
+//! See [ARCHITECTURE.md](../ARCHITECTURE.md) for detailed documentation.
 
-pub mod codegen_ext;
-pub mod tailwind_ext;
-pub mod walker;
+// ============================================================================
+// Primary Module Structure
+// ============================================================================
 
-// Re-export the extension traits
-pub use codegen_ext::{
-    CodeGenConfig, CodeGenResult, CodeGenSystem, CodeGenerator, FileNamingStrategy,
+pub mod analysis;
+pub mod conversion;
+pub mod core;
+pub mod extensions;
+pub mod generators;
+pub mod pipeline;
+
+// ============================================================================
+// Primary Public API - Use these!
+// ============================================================================
+
+/// Convenient prelude for common imports
+///
+/// Use this for quick imports of the most commonly used types:
+///
+/// ```rust,ignore
+/// use etch_figma::prelude::*;
+/// ```
+///
+/// This provides access to:
+/// - Configuration: `CodeGenConfig`, `CodeGenConfigBuilder`
+/// - Pipeline: `UnifiedPipeline`, `UnifiedPipelineBuilder`
+/// - Generators: `TsxGenerator`, `TsxGeneratorBuilder`, `HtmlGenerator`
+/// - Custom visitors: `Walker`, `NodeVisitor`, `NodeContext`
+/// - Error handling: `Error`, `Result`
+/// - Configuration enums: `VectorExportStrategy`, `SvgContainerMode`, etc.
+pub mod prelude {
+    // Core types
+    pub use crate::core::{
+        CodeGenConfig, CodeGenConfigBuilder, CodeGenResult, CodeGenSystem, CodeGenerator, Error,
+        FileNamingStrategy, NodeContext, NodeVisitor, Result, SvgContainerMode, TextInSvgMode,
+        VectorExportStrategy, Walker,
+    };
+
+    // Generators
+    pub use crate::generators::{HtmlGenerator, TsxGenerator, TsxGeneratorBuilder, TsxVisitor};
+
+    // Pipeline
+    pub use crate::pipeline::{UnifiedPipeline, UnifiedPipelineBuilder};
+
+    // Extensions (optional utilities)
+    pub use crate::extensions::{TailwindStyleExt, TailwindStyles};
+}
+
+// ============================================================================
+// Root-level Re-exports for Convenience
+// ============================================================================
+//
+// These re-exports allow you to use common types without the prelude:
+//   use etch_figma::{CodeGenConfig, UnifiedPipelineBuilder};
+//
+
+// Configuration and core types
+pub use core::{
+    CodeGenConfig, CodeGenConfigBuilder, CodeGenResult, CodeGenSystem, CodeGenerator, Error,
+    FileNamingStrategy, NodeContext, NodeVisitor, Result, SvgContainerMode, TextInSvgMode,
+    VectorExportStrategy, Walker,
 };
-pub use tailwind_ext::{TailwindStyleExt, TailwindStyles};
 
-// Re-export generators
-pub use html::generator::HtmlGenerator;
-pub use tsx::generator::TsxGenerator;
+// Generators and visitors
+pub use generators::{HtmlGenerator, TsxGenerator, TsxGeneratorBuilder, TsxVisitor};
 
-// Re-export unified pipeline
-pub use unified_pipeline::{UnifiedPipeline, UnifiedPipelineBuilder};
+// Pipeline
+pub use pipeline::{UnifiedPipeline, UnifiedPipelineBuilder};
+
+// Extensions
+pub use extensions::{TailwindStyleExt, TailwindStyles};
+
+// ============================================================================
+// Extension Traits
+// ============================================================================
 
 use figma_api::models::SubcanvasNode;
 
